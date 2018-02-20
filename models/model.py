@@ -1,5 +1,5 @@
 """
-Model Scaffolding take from CS 224N.
+Model Scaffolding taken from CS 224N.
 """
 
 from util import Progbar, minibatches
@@ -11,8 +11,7 @@ class Model(object):
     """Abstracts a Tensorflow graph for a learning task.
 
     We use various Model classes as usual abstractions to encapsulate tensorflow
-    computational graphs. Each algorithm you will construct in this homework will
-    inherit from a Model object.
+    computational graphs.
     """
     def __init__(self, config):
         self.config = config # Specify Configuration
