@@ -40,8 +40,8 @@ class Dialog_Bots(object):
             answer: The predictions of the Q bot at the end of (every) dialog
         """
 		#First encode the caption and image in both bots
-		self.Qbot.encode_caption(self.caption_placeholder)
-		self.Abot.encode_caption_image(self.caption_placeholder, self.image_placeholder)
+		qbot_init_state = self.Qbot.encode_captions(self.caption_placeholder)
+		abot_init_state  = self.Abot.encode_captions_images(self.caption_placeholder, self.image_placeholder)
 		guesses=[]
 		for _ in xrange(rounds_dialog):
 			#First question asked by Q bot

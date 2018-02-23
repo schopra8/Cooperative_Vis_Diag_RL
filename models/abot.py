@@ -1,64 +1,86 @@
 class ABot(object):
     """Abstracts an A-Bot for answering questions about a photo
     """
-    def encode_question(self, question):
-        """Encodes a question given the current state (Question Encoder)
+    def encode_captions_images(self, captions, images):
+        """Encodes the captions and the images into the states
 
         Args:
-            question: A question that the Q-Bot asked
-        Returns:
-            question_encoding: An encoding of the question
+            captions [Batch Size, Caption] : Gives the captions for the current round of dialog
+            images [Batch Size, Image] : The images for the dialog
         """
         raise NotImplementedError("Each A-Bot must re-implement this method.")
 
-    def encode_fact(self, question, answer):
-        """Encodes a fact as a combination of a question and answer (Fact Encoder)
+    def encode_questions(self, questions):
+        """Encodes questions (Question Encoder)
 
         Args:
-            question: A question asked by the Q-Bot in the most recent round
-            answer: The answer given by the A-Bot in response to the question
+            questions: questions that the Q-Bot asked [Batch Size, 1]
         Returns:
-            fact: An encoded fact that combines the question and answer
+            question_encodings: encoding of the questions [Batch Size,]
         """
         raise NotImplementedError("Each A-Bot must re-implement this method.")
 
-    def encode_state_history(self, question_encoding, fact):
-        """Encodes a state as a combination of facts (State/History Encoder)
+    def encode_facts(self, questions, answers):
+        """Encodes questions and answers into a fact (Fact Encoder)
 
         Args:
-            question_encoding: An encoded question
-            fact: An encoded fact
+            questions: questions asked by the Q-Bot in the most recent round [Batch Size]
+            answers: answers given by the A-Bot in response to the questions [Batch Size]
         Returns:
-            state: An encoded state that combines question_encodings and facts
+            facts: encoded facts that combine the question and answer
+        """
+        raise NotImplementedError("Each Q-Bot must re-implement this method.")
+
+    def encode_state_histories(self, images, captions, question_encodings, recent_facts, prev_states):
+        """Encodes states as a combination of facts (State/History Encoder)
+
+        Args:
+            images [Batch Size, Image] : The images for the dialog
+            captions [Batch Size, Caption] : Gives the captions for the current round of dialog
+            question_encodings: encoded questions [Batch Size]
+            recent_facts: encoded facts [Batch Size]
+            prev_states: prev states [Batch Size]
+        Returns:
+            states: encoded states that combine images, captions, question_encodings, recent_facts
         """
         raise NotImplementedError("Each A-Bot must re-implement this method.")
 
-    def decode_answer(self, state):
-        """Generates an answer given the current state (Answer Decoder)
+    def decode_answers(self, states):
+        """Generates answer given the current states (Answer Decoder)
 
         Args:
-            state: An encoded state
+            states: encoded states
         Returns:
-            answer: An answer
+            answers: answers
         """
         raise NotImplementedError("Each A-Bot must re-implement this method.")
 
-    def get_q_values(self, state):
-        """Returns all Q-values for all actions given state
+    def generate_image_representations(self, states):
+        """Guesses images given the current states (Feature Regression Network)
 
         Args:
-            state: An encoded state
+            state: encoded states [Batch Size, 1]
         Returns:
-            values: A representation of action to expected value
+            image_repr: representation of the predicted images [Batch Size, 1]
+        """
+        raise NotImplementedError("Each Q-Bot must re-implement this method.")
+
+    def get_q_values(self, states):
+        """Returns all Q-values for all actions given states
+
+        Args:
+            state: encoded states [Batch Size, 1]
+        Returns:
+            values: mapping of actions to expected return values [Batch Size, 1]
         """
         raise NotImplementedError("Each A-Bot must re-implement this method.")
 
-    def get_action(self, state):
-        """Returns an action according to some exploration policy given an encoded state
+    def get_answers(self, states):
+        """Returns answers according to some exploration policy given encoded states
 
         Args:
-            state: An encoded state
+            state: encoded states [Batch Size, 1]
         Returns:
-            action: A question for the Q-Bot to ask
+            answers: answers that A Bot will provide [Batch Size, 1]
         """
         raise NotImplementedError("Each A-Bot must re-implement this method.")

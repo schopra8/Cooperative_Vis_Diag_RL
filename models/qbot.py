@@ -1,63 +1,74 @@
 class QBot(object):
     """Abstracts a Q-Bot for asking questions about a photo
     """
-    def encode_fact(self, question, answer):
-        """Encodes a question and answer into a fact (Fact Encoder)
+    def encode_captions(self, captions):
+        """Encodes captions.
 
         Args:
-            question: A question asked by the Q-Bot in the most recent round
-            answer: The answer given by the A-Bot in response to the question
+            captions: [Batch Size, Caption Encoding Dimensions]
         Returns:
-            fact: An encoded fact that combines the question and answer
+            captions: encoded captions  
         """
         raise NotImplementedError("Each Q-Bot must re-implement this method.")
 
-    def encode_state_history(self, fact):
-        """Encodes the state as a combination of facts (State/History Encoder)
+    def encode_facts(self, questions, answers):
+        """Encodes questions and answers into a fact (Fact Encoder)
 
         Args:
-            fact: An encoded fact
+            questions: questions asked by the Q-Bot in the most recent round [Batch Size, 1]
+            answers: answers given by the A-Bot in response to the questions [Batch Size, 1]
         Returns:
-            state: An encoded state that combines the current fact and previous facts
+            facts: encoded facts that combine the question and answer
         """
         raise NotImplementedError("Each Q-Bot must re-implement this method.")
 
-    def decode_question(self, state):
-        """Decodes (generates) a question given the current state (Question Decoder)
+    def encode_state_histories(self, prev_states, recent_facts):
+        """Encodes states as a combination of facts for a given round (State/History Encoder)
 
         Args:
-            state: An encoded state
+            prev_states: [(q_1, a_1, q_2, a_2) ... ] List of tuples
+            recent_facts: [(q_n, a_n), ...] List of yuples
         Returns:
-            question: A question that the Q-Bot will ask
+            state: encoded state that combines the current facts and previous facts [Batch Size, 1]
         """
         raise NotImplementedError("Each Q-Bot must re-implement this method.")
 
-    def generate_image_representation(self, state):
-        """Guesses an image given the current state (Feature Regression Network)
+    def decode_questions(self, states):
+        """Decodes (generates) questions given the current states (Question Decoder)
 
         Args:
-            state: An encoded state
+            states (list of tuples) [Batch Size]: encoded states
         Returns:
-            image_repr: A representation of the predicted image
+            questions: (list of ints) [Batch Size]
         """
         raise NotImplementedError("Each Q-Bot must re-implement this method.")
 
-    def get_q_values(self, state):
-        """Returns all Q-values for all actions given state
+    def generate_image_representations(self, states):
+        """Guesses images given the current states (Feature Regression Network)
 
         Args:
-            state: An encoded state
+            state: encoded states [Batch Size, 1]
         Returns:
-            values: A representation of action to expected value
+            image_repr: representation of the predicted images [Batch Size, 1]
         """
         raise NotImplementedError("Each Q-Bot must re-implement this method.")
 
-    def get_action(self, state):
-        """Returns an action according to some exploration policy given an encoded state
+    def get_q_values(self, states):
+        """Returns all Q-values for all actions given states
 
         Args:
-            state: An encoded state
+            state: encoded states [Batch Size, 1]
         Returns:
-            action: A question for the Q-Bot to ask
+            values: mapping of actions to expected return values [Batch Size, 1]
+        """
+        raise NotImplementedError("Each Q-Bot must re-implement this method.")
+
+    def get_questions(self, states):
+        """Returns questions according to some exploration policy given encoded states
+
+        Args:
+            state: encoded states [Batch Size, 1]
+        Returns:
+            questions: questions that Q Bot will ask [Batch Size, 1]
         """
         raise NotImplementedError("Each Q-Bot must re-implement this method.")

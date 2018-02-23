@@ -8,184 +8,191 @@ from collections import defaultdict
 from models.qbot import QBot
 from models.abot import ABot
 
-
 class SyntheticQBot(QBot):
     def __init__(self, config):
-        self.state = ()
         self.Q = defaultdict(lambda: np.zeros(config.num_actions))
         self.Q_regression = defaultdict(lambda: np.zeros(config.num_classes))
 
         # {epsilon, num_actions, num_classes}
         self.config = config
     
-    def encode_caption(self, caption):
-        """Encodes a question and answer into a fact (Fact Encoder)
+    def encode_captions(self, captions):
+        """Encodes captions.
 
         Args:
-            caption (vector) : Gives the caption for the current round of dialog
+            captions: [Batch Size, Caption Encoding Dimensions]
+        Returns:
+            captions: encoded captions  
         """
-        self.state += caption
+        return captions
     
-    def encode_fact(self, question, answer):
-        """Encodes a question and answer into a fact (Fact Encoder)
+    def encode_facts(self, questions, answers):
+        """Encodes questions and answers into facts (Fact Encoder)
 
         Args:
-            question (int): A question asked by the Q-Bot in the most recent round
-            answer (int): The answer given by the A-Bot in response to the question
+            questions [Batch Size]: List of ints, where int represents question asked
+                                      by the Q-Bot in the most recent round
+            answers [Batch Size]: List of ints, where int represents an answer by the A-Bot 
+                                      to the questions
         Returns:
             fact (tuple): An encoded fact that combines the question and answer
         """
-        fact = (question, answer)
-        self.fact = fact
-        return fact
+        self.new_facts = zip(questions, answers)
+        return self.new_facts
 
-    def encode_state_history(self, fact = self.fact):
+    def encode_state_histories(self, prev_states, facts):
         """Encodes the state as a combination of facts (State/History Encoder)
 
         Args:
-            fact (tuple): An encoded fact
+            prev_state (list of tuples) [Batch Size]
+            facts (list of tuples) [Batch Size]
         Returns:
-            state (tuple): An encoded state that combines the current fact and previous facts
+            state (list of tuples) [Batch Size]: states that combines the current fact and previous facts
         """
-        self.state += fact
-        return self.state
+        new_states = [d_state + facts[i] for i, d_state in enumerate(prev_states)]
+        return new_states
 
-    def decode_question(self, state):
-        """Decodes (generates) a question given the current state (Question Decoder)
+    def decode_questions(self, states):
+        """Decodes (generates) questions given the current states (Question Decoder)
 
         Args:
-            state: An encoded state
+            states (list of tuples) [Batch Size]: encoded states
         Returns:
-            question: A question that the Q-Bot will ask
+            questions: (list of ints) [Batch Size]
         """
-        question = np.argmax(self.Q[state])
-        self.question = question
-        return question
+        questions = [np.argmax(self.Q[state]) for state in states]
+        return questions
 
-    def generate_image_representation(self, state):
+    def generate_image_representations(self, states):
         """Guesses an image given the current state (Feature Regression Network)
 
         Args:
-            state: An encoded state
+            states (list of tuples) [Batch Size]: encoded states
         Returns:
-            image_repr: A representation of the predicted image
+            image_representations [Batch Size, img_dim]: representation of the predicted images
         """
-        image_repr = np.argmax(self.Q_regression[state])
+        image_repr = [np.argmax(self.Q_regression[state]) for state in states]
         return image_repr
 
-    def get_q_values(self, state):
+    def get_q_values(self, states):
         """Returns all Q-values for all actions given state
 
         Args:
-            state: An encoded state
+            states (list of tuples) [Batch Size]: encoded states
         Returns:
-            q_values: A representation of action to expected value
+            q_values (list of maps) [Batch Size]: representations of actions to expected return values
         """
-        q_values = self.Q[state]
+        q_values = [self.Q[state] for state in states]
         return q_values
 
-    def get_action(self, state):
-        """Returns an action according to some exploration policy given an encoded state
+    def get_questions(self, states):
+        """Returns questions according to some exploration policy given encoded states
 
         Args:
-            state: An encoded state
+            state: encoded states [Batch Size, 1]
         Returns:
-            action: A question for the Q-Bot to ask
+            questions: questions that Q Bot will ask [Batch Size, 1]
         """
-        if np.random.rand() < self.config.epsilon:
-            return np.random.choice(self.config.num_actions)
-        else:
-            return self.decode_answer(state)
-
+        optimal_questions = self.decode_questions(states) 
+        def get_question(state, optimal_question):
+            if np.random.rand() < self.config.epsilon:
+                return np.random.choice(self.config.num_actions)
+            else:
+                return optimal_question
+        questions = [get_question(state, optimal_questions[i]) for i, state in enumerate(states)]
+        return questions
 
 class SyntheticABot(ABot):
     def __init__(self, config):
-        self.state = ()
         self.Q = defaultdict(lambda: np.zeros(config.num_actions))
-        self.fact = ()
         # {epsilon, num_actions}
         self.config = config
 
-    def encode_caption_image(self, caption, image):
-        """Encodes the caption and the image into the state
+    def encode_captions_images(self, captions, images):
+        """Encodes the captions and the images into the states
 
         Args:
-            caption (vector) : Gives the caption for the current round of dialog
-            image (vector) : The image for the dialog
+            captions [Batch Size, Caption] : Gives the captions for the current round of dialog
+            images [Batch Size, Image] : The images for the dialog
+        Return:
+            encoded_cap_im = [(Image, Caption), ...]
         """
-        self.state += image
-        self.state += caption
-    def encode_question(self, question):
-        """Encodes a question given the current state (Question Encoder)
+        encoded_cap_im = zip(images, captions)
+        return encoded_cap_im
+
+    def encode_questions(self, questions):
+        """Encodes questions (Question Encoder)
 
         Args:
-            question: A question that the Q-Bot asked
+            questions: questions that the Q-Bot asked [Batch Size, 1]
         Returns:
-            question_encoding: An encoding of the question
+            question_encodings: encoding of the questions [Batch Size,]
         """
-        question_encoding = question
-        self.question_encoding = question
-        return question_encoding
+        return questions
 
-    def encode_fact(self, question, answer):
-        """Encodes a fact as a combination of a question and answer (Fact Encoder)
+    def encode_facts(self, questions, answers):
+        """Encodes questions and answers into a fact (Fact Encoder)
 
         Args:
-            question: A question asked by the Q-Bot in the most recent round
-            answer: The answer given by the A-Bot in response to the question
+            questions: questions asked by the Q-Bot in the most recent round [Batch Size, 1]
+            answers: answers given by the A-Bot in response to the questions [Batch Size, 1]
         Returns:
-            fact: An encoded fact that combines the question and answer
+            facts: encoded facts that combine the images, captions, questions, and answers
         """
-        fact = (question, answer)
-        self.fact = fact
-        return fact
+        facts = zip(questions, answers)
+        return facts
 
-    def encode_state_history(self, question_encoding, fact = self.fact):
-        """Encodes a state as a combination of facts (State/History Encoder)
+    def encode_state_histories(self, images, captions, question_encodings, recent_facts, states):
+        """Encodes states as a combination of facts (State/History Encoder)
 
         Args:
-            question_encoding: An encoded question
-            fact: An encoded fact
+            question_encodings: encoded questions [Batch Size, 1]
+            facts: encoded facts [Batch Size, 1]
         Returns:
-            state: An encoded state that combines question_encodings and facts
+            state: encoded states that combine question_encodings and facts
         """
-        self.state += (question_encoding,) + fact
-        return self.state
+        new_states = zip(images, captions, question_encodings, recent_facts)
+        histories = [state + new_states[i] for i, state in enumerate states]
+        return histories
 
-    def decode_answer(self, state):
-        """Generates an answer given the current state (Answer Decoder)
+    def decode_answers(self, states):
+        """Generates an answer given the current state s(Answer Decoder)
 
         Args:
-            state: An encoded state
+            states: encoded states
         Returns:
-            answer: An answer
+            answer: answers
         """
-        answer = np.argmax(self.Q[state])
-        return answer
+        answers = [np.argmax(self.Q[state]) for state in states]
+        return answers
 
-    def get_q_values(self, state):
+    def get_q_values(self, states):
         """Returns all Q-values for all actions given state
 
         Args:
-            state: An encoded state
+            states: encoded states
         Returns:
             q_values: A representation of action to expected value
         """
-        q_values = self.Q[state]
+        q_values = [self.Q[state] for state in states]
         return q_values
 
-    def get_action(self, state):
-        """Returns an action according to some exploration policy given an encoded state
+    def get_answers(self, states):
+        """Returns answers according to some exploration policy given encoded states
 
         Args:
-            state: An encoded state
+            state: encoded states [Batch Size, 1]
         Returns:
-            action: A question for the Q-Bot to ask
+            answers: answers that A Bot will provide [Batch Size, 1]
         """
-        if np.random.rand() < self.config.epsilon:
-            return np.random.choice(self.config.num_actions)
-        else:
-            return self.decode_answer(state)
+        optimal_answers = self.decode_answers(states)
+        def get_answer(state, optimal_answer):
+            if np.random.rand() < self.config.epsilon:
+                return np.random.choice(self.config.num_actions)
+            else:
+                return optimal_answer
+        answers = [get_answer(state, optimal_answers[i]) for i, state in enumerate(states)]
+        return answers
 
 
 if __name__ == '__main__':
