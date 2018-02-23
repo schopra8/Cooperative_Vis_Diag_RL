@@ -94,12 +94,12 @@ class SyntheticQBot(QBot):
             questions: questions that Q Bot will ask [Batch Size, 1]
         """
         optimal_questions = self.decode_questions(states) 
-        def get_question(state, optimal_question):
+        def get_question(optimal_question):
             if np.random.rand() < self.config.epsilon:
                 return np.random.choice(self.config.num_actions)
             else:
                 return optimal_question
-        questions = [get_question(state, optimal_questions[i]) for i, state in enumerate(states)]
+        questions = [get_question(optimal_question) for optimal_question in optimal_questions]
         return questions
 
 class SyntheticABot(ABot):
@@ -186,12 +186,12 @@ class SyntheticABot(ABot):
             answers: answers that A Bot will provide [Batch Size, 1]
         """
         optimal_answers = self.decode_answers(states)
-        def get_answer(state, optimal_answer):
+        def get_answer(optimal_answer):
             if np.random.rand() < self.config.epsilon:
                 return np.random.choice(self.config.num_actions)
             else:
                 return optimal_answer
-        answers = [get_answer(state, optimal_answers[i]) for i, state in enumerate(states)]
+        answers = [get_answer(optimal_answer) for optimal_answer in optimal_answers]
         return answers
 
 
