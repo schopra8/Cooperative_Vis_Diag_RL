@@ -17,7 +17,15 @@ class SyntheticQBot(QBot):
 
         # {epsilon, num_actions, num_classes}
         self.config = config
+    
+    def encode_caption(self, caption):
+        """Encodes a question and answer into a fact (Fact Encoder)
 
+        Args:
+            caption (vector) : Gives the caption for the current round of dialog
+        """
+        self.state += caption
+    
     def encode_fact(self, question, answer):
         """Encodes a question and answer into a fact (Fact Encoder)
 
@@ -28,9 +36,10 @@ class SyntheticQBot(QBot):
             fact (tuple): An encoded fact that combines the question and answer
         """
         fact = (question, answer)
+        self.fact = fact
         return fact
 
-    def encode_state_history(self, fact):
+    def encode_state_history(self, fact = self.fact):
         """Encodes the state as a combination of facts (State/History Encoder)
 
         Args:
@@ -50,6 +59,7 @@ class SyntheticQBot(QBot):
             question: A question that the Q-Bot will ask
         """
         question = np.argmax(self.Q[state])
+        self.question = question
         return question
 
     def generate_image_representation(self, state):
@@ -92,10 +102,19 @@ class SyntheticABot(ABot):
     def __init__(self, config):
         self.state = ()
         self.Q = defaultdict(lambda: np.zeros(config.num_actions))
-
+        self.fact = ()
         # {epsilon, num_actions}
         self.config = config
 
+    def encode_caption_image(self, caption,i mage):
+        """Encodes the caption and the image into the state
+
+        Args:
+            caption (vector) : Gives the caption for the current round of dialog
+            image (vector) : The image for the dialog
+        """
+        self.state += image
+        self.state += caption
     def encode_question(self, question):
         """Encodes a question given the current state (Question Encoder)
 
@@ -105,6 +124,7 @@ class SyntheticABot(ABot):
             question_encoding: An encoding of the question
         """
         question_encoding = question
+        self.question_encoding = question
         return question_encoding
 
     def encode_fact(self, question, answer):
@@ -117,9 +137,10 @@ class SyntheticABot(ABot):
             fact: An encoded fact that combines the question and answer
         """
         fact = (question, answer)
+        self.fact = fact
         return fact
 
-    def encode_state_history(self, question_encoding, fact):
+    def encode_state_history(self, question_encoding, fact = self.fact):
         """Encodes a state as a combination of facts (State/History Encoder)
 
         Args:
