@@ -106,7 +106,7 @@ class SyntheticABot(ABot):
         # {epsilon, num_actions}
         self.config = config
 
-    def encode_caption_image(self, caption,i mage):
+    def encode_caption_image(self, caption, image):
         """Encodes the caption and the image into the state
 
         Args:
