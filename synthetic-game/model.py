@@ -40,22 +40,26 @@ class Dialog_Bots(object):
             answer: The predictions of the Q bot at the end of (every) dialog
         """
 		#First encode the caption and image in both bots
-		qbot_init_state = self.Qbot.encode_captions(self.caption_placeholder)
-		abot_init_state  = self.Abot.encode_captions_images(self.caption_placeholder, self.image_placeholder)
+		qbot_state = self.Qbot.encode_captions(self.caption_placeholder)
+		abot_state  = self.Abot.encode_captions_images(self.caption_placeholder, self.image_placeholder)
 		guesses=[]
+		trajectory=[]
+		abot_fact= []
 		for _ in xrange(rounds_dialog):
 			#First question asked by Q bot
-			question = self.Qbot.decode_question()
+			question = self.Qbot.get_questions(qbot_state)
+			trajectory.append(question)
 			#A bot encodes the question, updates state, generates answer
-			self.Abot.encode_question(question)
-			self.Abot.encode_state_history(self.Abot.question_encoding)
-			answer = self.Abot.decode_answer(self.Abot.state)
+			question_encoding = self.Abot.encode_question(question)
+			a_history = self.Abot.encode_state_history(self.image_placeholder, self.caption_placeholder, question_encoding, abot_fact, abot_state)
+			answer = self.Abot.get_answers(a_history)
+			trajectory.append(answer)
 			#Once answer is generated, fact is stored for use in next round of dialog (saved in self.fact)
-			self.Abot.encode_fact(question, answer)
+			abot_fact = self.Abot.encode_fact(question, answer)
 			#Encode the question answer pair and store in self.fact
-			self.Qbot.encode_fact(question, answer)
+			qbot_fact = self.Qbot.encode_fact(question, answer)
 			#Add this fact to state_history
-			self.Qbot.encode_state_history()
+			qbot_state = self.Qbot.encode_state_history(qbot_state, qbot_fact)
 			#Guess if needed
 			if self.config.guess_every_round:
 				guesses.append(self.Qbot.generate_image_representation) # TODO Make this proper method call
