@@ -142,7 +142,7 @@ class SyntheticABot(ABot):
         facts = zip(questions, answers)
         return facts
 
-    def encode_state_histories(self, images, captions, question_encodings, recent_facts, states):
+    def encode_state_histories(self, images, captions, question_encodings, recent_facts, prev_states):
         """Encodes states as a combination of facts (State/History Encoder)
 
         Args:

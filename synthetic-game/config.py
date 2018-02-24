@@ -28,6 +28,8 @@ class config():
     guess_every_round = False
     #Number of rounds of dialog before cutoff
     max_dialog_rounds = 2
+    # Batch Size
+    batch_size = 20
 ##Output files
     output_dir = "./results/"
     data_dir = 
