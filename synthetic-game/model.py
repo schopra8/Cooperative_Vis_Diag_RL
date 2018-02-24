@@ -28,7 +28,7 @@ class Dialog_Bots(object):
 		}
 		return feed_dict
 
-	def run_dialog(self, rounds_dialog = 2, synthetic=True):
+	def run_dialog(self, batch_size=self.config.batch_size, rounds_dialog = 2, synthetic=True):
 		""" Runs dialog for specified number of rounds:
 				1) Q Bot asks question
 				2) A Bot answers question based on history 
@@ -42,8 +42,9 @@ class Dialog_Bots(object):
 		#First encode the caption and image in both bots
 		q_bot_states = self.Qbot.encode_captions(self.caption_placeholder)
 		a_bot_states  = self.Abot.encode_captions_images(self.caption_placeholder, self.image_placeholder)
+		trajectories = [] * batch_size
 		if synthetic:
-			a_bot_recent_facts = [(-1, -1)] * self.config.batch_size # Sentinels for A Bot Fact 0
+			a_bot_recent_facts = [(-1, -1)] * batch_size # Sentinels for A Bot Fact 0
 			q_bot_facts = [] 
 		else:
 			continue # TODO: Not Yet Implemented
@@ -59,11 +60,15 @@ class Dialog_Bots(object):
 				a_bot_states
 			)
 			answers = self.Abot.decode_answers(a_bot_states) # ABot generates answers (A_t)
+
 			a_bot_recent_facts = self.Abot.encode_facts(question_encodings, answers) # ABot generates facts (F_t)
 			q_bot_facts = self.Qbot.encode_facts(questions, answers) # QBot encodes facts (F_t)
 			q_bot_states = self.Qbot.encode_state_histories(q_bot_states, q_bot_facts) # QBot encode states
 			if self.config.guess_every_round:
 				guesses.append(self.Qbot.generate_image_representations(q_bot_states))
+			for i, q in enumerate(questions):
+				trajectories[i].append(q)
+				trajectories[i].append(answers[i])
 		#Final guess if not already added
 		if not self.config.guess_every_round:
 			guesses = self.Qbot.generate_image_representations(q_bot_states)
