@@ -14,6 +14,8 @@ class config():
         epsilon_start = 1
         epsilon_end = 0.1
         epsilon_step = 0.001
+    # discount factor
+        gamma = 1
 ## Parameters for Abot
     class A():
     #Vocabulary size for A bot
@@ -22,6 +24,8 @@ class config():
         epsilon_start = 1
         epsilon_end = 0.1
         epsilon_step = 0.001
+    # discount factor
+    gamma = 1
 
 ##Training parameters
     #need Q bot to guess image representation at every round?

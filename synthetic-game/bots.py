@@ -24,7 +24,7 @@ class SyntheticQBot(QBot):
         Returns:
             captions: encoded captions  
         """
-        return captions
+        return [((c)) for c in list(captions.eval())] # [((c1)), ((c2))]
     
     def encode_facts(self, questions, answers):
         """Encodes questions and answers into facts (Fact Encoder)
@@ -115,10 +115,10 @@ class SyntheticABot(ABot):
             captions [Batch Size, Caption] : Gives the captions for the current round of dialog
             images [Batch Size, Image] : The images for the dialog
         Return:
-            encoded_cap_im = [(Image, Caption), ...]
+            encoded_cap_im = [((Image, Caption)), ...]
         """
-        encoded_cap_im = zip(images, captions)
-        return encoded_cap_im
+        encoded_cap_im = zip(list(images.eval()), list(captions.eval()))
+        return [(cap_im) for cap_im in encoded_cap_im]
 
     def encode_questions(self, questions):
         """Encodes questions (Question Encoder)

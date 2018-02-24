@@ -28,7 +28,7 @@ class Dialog_Bots(object):
 		}
 		return feed_dict
 
-	def run_dialog(self, batch_size=self.config.batch_size, rounds_dialog = 2, synthetic=True):
+	def run_dialog(self,batch_size=self.config.batch_size, rounds_dialog = 2, synthetic=True):
 		""" Runs dialog for specified number of rounds:
 				1) Q Bot asks question
 				2) A Bot answers question based on history 
@@ -69,13 +69,59 @@ class Dialog_Bots(object):
 			for i, q in enumerate(questions):
 				trajectories[i].append(q)
 				trajectories[i].append(answers[i])
-		#Final guess if not already added
 		if not self.config.guess_every_round:
 			guesses = self.Qbot.generate_image_representations(q_bot_states)
-		return guesses
 
-	def add_prediction_op(self, inputs, captions):
-		guess = self.run_dialog(self.config.max_dialog_rounds)
-		feed = self.create_feed_dict(inputs, captions)
-		guesses = self.sess.run(guess, feed_dict = feed)
-	
+		# TODO: Rewrite trajectories + after confirmation from others.
+		# There should actually be two sets of trajectories. One set for Q Bot and another for A Bot.
+		# The Trajectories should be in the form of [(state, action), ...]
+		# Note: They are currently of the form [(q, a), ...], which I believe is incorrect (Sahil)
+		return trajectories, guesses, q_bot_states, a_bot_states
+
+	def get_minibatches(self, batch_size=20):
+		# TODO Implement batching of captions, images
+		pass
+
+	def get_returns(self, trajectories, guesses, answers, gamma):
+		""" Gets returns for a list of trajectories. 
+			+1 Reward if guess == answer
+			+0 Otherwise
+		"""
+		# TODO: Confirm the reward structure
+		all_returns = []
+		for i, g in enumerate(guesses):
+			path_returns = [0] * len(trajectories[i])
+			if g == answers[i]:
+				# Correct answer, otherwise vector of all 0s
+				discount_factors = np.power(gamma, np.arange(len(trajectories[i])))
+				path_returns = list(np.multiply(np.ones(len(trajectories[i]), discount_factors)))
+			all_returns.append(path_returns)
+		return all_returns
+
+	def train(self, batch_size=20, num_iterations=500, max_dialog_rounds=1):
+		for i in num_iterations:
+			inputs, captions, answers = self.get_minibatches(batch_size)
+			guess_op = self.run_dialog(batch_size, max_dialog_rounds)
+			feed = self.create_feed_dict(inputs, captions)
+			trajectories, guesses, q_bot_states, a_bot_states = self.sess.run(guess_op, feed_dict = feed)
+
+			# TODO: Perform Q Bot and A Bot Updates
+			# Pseudocode:
+			# 	Get Returns for trajectory
+			#	Iterate over each of the trajectories, examinin the state, action -> reward pairings
+			#	Mantain a default dict of (state, action) -> np.array([a_1, a_2, a_3])
+			# 	Update entries in this numpy array
+			#	Eventually perform running average between these numpy arrays and those stored in the appropriate
+			#	Q Tables for Q Bot or A Bot
+			if i % 2 == 0:
+				# Update Q Bot
+				returns = self.get_returns(trajectories, guesses, answers, self.config.Q.gamma)
+			else:
+				# Update A Bot
+				returns = self.get_returns(trajectories, guesses, answers, self.config.A.gamma)
+
+
+
+
+
+		 	
