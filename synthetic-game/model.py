@@ -62,10 +62,10 @@ class Dialog_Bots(object):
 			qbot_state = self.Qbot.encode_state_history(qbot_state, qbot_fact)
 			#Guess if needed
 			if self.config.guess_every_round:
-				guesses.append(self.Qbot.generate_image_representation) # TODO Make this proper method call
+				guesses.append(self.Qbot.generate_image_representation(qbot_state)) # TODO Make this proper method call
 		#Final guess if not already added
 		if not self.config.guess_every_round:
-			guesses = self.Qbot.generate_image_representation
+			guesses = self.Qbot.generate_image_representation(qbot_state)
 		return guesses
 
 	def add_prediction_op(self, inputs, captions):
