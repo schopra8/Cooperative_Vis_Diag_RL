@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from collections import defaultdict
 from bots import SyntheticQBot
 from bots import SyntheticABot
 
@@ -102,27 +103,34 @@ class Dialog_Bots(object):
 		return all_returns
 
 	def train(self, batch_size=20, num_iterations=500, max_dialog_rounds=1):
+		def apply_updates(bot, trajectories, returns, state_action_counts):
+			""" Get Q-Learning updates that should be applied to a bot.
+				We compute the running average of each state, action -> reward.
+			"""
+			for t_index, t in enumerate(trajectories):
+				t_returns = returns[t_index]
+				for r_index, (state, action) in enumerate(t):
+					state_action_counts[state][action] += 1
+					state_action_count = state_action_counts[state][action]
+					prev_q_val_contrib = ((bot.Q[state][action] + 0.0) / state_action_count) * (state_action_count - 1.0)
+					cur_update_contrib = (1.0 / state_action_count) * t_returns[r_index] 
+					cur_q_val = prev_q_val_contrib + cur_update_contrib
+					bot.Q[state][action] = cur_q_val
+
+		q_bot_state_action_counts = defaultdict(lambda: np.zeros())
+		a_bot_state_action_counts = defaultdict(lambda: np.zeros())
 		for i in num_iterations:
 			inputs, captions, answers = self.get_minibatches(batch_size)
 			guess_op = self.run_dialog(batch_size, max_dialog_rounds)
 			feed = self.create_feed_dict(inputs, captions)
-			trajectories, guesses, q_bot_states, a_bot_states = self.sess.run(guess_op, feed_dict = feed)
-
-			# TODO: Perform Q Bot and A Bot Updates
-			# Pseudocode:
-			# 	Get Returns for trajectory
-			#	Iterate over each of the trajectories, examinin the state, action -> reward pairings
-			#	Mantain a default dict of (state, action) -> np.array([a_1, a_2, a_3])
-			# 	Update entries in this numpy array
-			#	Eventually perform running average between these numpy arrays and those stored in the appropriate
-			#	Q Tables for Q Bot or A Bot
-			if i % 2 == 0:
-				# Update Q Bot
-				returns = self.get_returns(trajectories, guesses, answers, self.config.Q.gamma)
+			guesses, q_bot_trajectories, a_bot_trajectories = self.sess.run(guess_op, feed_dict = feed)
+			update_q_bot = i % 2 == 0
+			if update_q_bot:
+				returns = self.get_returns(q_bot_trajectories, guesses, answers, self.config.Q.gamma)
+				apply_updates(self.Qbot, q_bot_trajectories, returns, q_bot_state_action_counts)
 			else:
-				# Update A Bot
-				returns = self.get_returns(trajectories, guesses, answers, self.config.A.gamma)
-
+				returns = self.get_returns(a_bot_trajectories, guesses, answers, self.config.A.gamma)
+				apply_updates(self.Abot, a_bot_trajectories, returns, a_bot_state_action_counts)
 
 
 
