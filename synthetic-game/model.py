@@ -144,7 +144,7 @@ class Dialog_Bots(object):
 			average_rewards_across_training.append(avg_reward)
 			sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
 			print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
-
+		
 			
 if __name__ == '__main__':
 	db = Dialog_Bots(config)
