@@ -1,12 +1,14 @@
 
 import numpy as np
 
+
 """Parameters for synthetic data
 """
 num_colors = 4
 num_shapes = 4
 num_fills = 4
 save_type = '%d'
+num_captions = 6
 
 #Data generation
 color = np.arange(num_colors)
@@ -20,4 +22,8 @@ data=[]
 for i in range(num_fills):
 	for j in range(len(shape_color)):
 		data.append(np.append(shape_color[j],i))
-np.savetxt('synthetic_data.csv', np.asarray(data), fmt=save_type, delimiter=',', header="Shape, Color, Fill")
+captions = np.arange(num_captions)
+data=np.asarray(data)
+data = np.concatenate([np.repeat(data,num_captions, axis = 0),np.expand_dims(np.tile(captions.T,data.shape[0]),1)], axis = 1)
+
+np.savetxt('synthetic_data.csv', data, fmt=save_type, delimiter=',', header="Shape, Color, Fill")
