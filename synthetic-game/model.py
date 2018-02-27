@@ -147,6 +147,15 @@ class Dialog_Bots(object):
 			sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
 			print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
 		
+		def show_dialog(self, image,caption,answer,batch_size = 1, rounds_dialog=2):
+			batch = (image,caption,-1)
+			output, q_bot_trajectory, a_bot_trajectory = self.run_dialog(minibatch, batch_size=self.config.batch_size, rounds_dialog=2)
+			print "FINAL PREDICTION = " + string(output)
+			i=1
+			while i<4:
+				print "Qbot question:" + string(q_bot_trajectory[i])+"\n"
+				print "Abot answer:" + string(a_bot_trajectory[i]) + "\n"
+				i+=2
 			
 if __name__ == '__main__':
 	db = Dialog_Bots(config)
