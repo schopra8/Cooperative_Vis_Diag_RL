@@ -11,6 +11,7 @@ class Dialog_Bots(object):
 		self.config=config
 		self.Qbot = SyntheticQBot(self.config.Q)
 		self.Abot = SyntheticABot(self.config.A)
+		self.eval_rewards = []
 
 	def run_dialog(self, minibatch, batch_size, rounds_dialog=2):
 		""" Runs dialog for specified number of rounds:
@@ -149,4 +150,18 @@ class Dialog_Bots(object):
 			average_rewards_across_training.append(avg_reward)
 			sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
 			print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
+		
+		def show_dialog(self, image,caption,answer,batch_size = 1, rounds_dialog=2):
+			batch = (image,caption,-1)
+			output, q_bot_trajectory, a_bot_trajectory = self.run_dialog(minibatch, batch_size=self.config.batch_size, rounds_dialog=2)
+			print "FINAL PREDICTION = " + string(output)
+			i=1
+			while i<4:
+				print "Qbot question:" + string(q_bot_trajectory[i])+"\n"
+				print "Abot answer:" + string(a_bot_trajectory[i]) + "\n"
+				i+=2
 			
+if __name__ == '__main__':
+	db = Dialog_Bots(config)
+	db.train()
+
