@@ -10,6 +10,7 @@ class Dialog_Bots(object):
 		self.config=config
 		self.Qbot = SyntheticQBot(self.config.Q)
 		self.Abot = SyntheticABot(self.config.A)
+		self.eval_rewards = []
 
 	def run_dialog(self, minibatch, batch_size=self.config.batch_size, rounds_dialog=2):
 		""" Runs dialog for specified number of rounds:
@@ -137,7 +138,9 @@ class Dialog_Bots(object):
 				returns = self.get_returns(a_bot_trajectories, predictions, labels, self.config.A.gamma)
 				apply_updates(self.Abot, a_bot_trajectories, returns, a_bot_state_action_counts)
 
-
+			if i%self.config.eval_freq ==0:
+				minibatch = self.get_minibatches(batch_size)
+				self.evaluate(minibatch)
 
 
 
