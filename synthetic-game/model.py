@@ -143,12 +143,6 @@ class Dialog_Bots(object):
 			average_rewards_across_training.append(avg_reward)
 			sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
 			print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
-			
-			
-
-			if i%self.config.eval_freq ==0:
-				minibatch = self.get_minibatches(batch_size)
-				self.evaluate(minibatch)
 
 
 

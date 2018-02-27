@@ -36,4 +36,5 @@ class config():
     batch_size = 20
 ##Output files
     output_dir = "./results/"
-    data_dir = 
+    DATA_DIR = "../synthetic_data"
+    DATA_FILE = "synthetic_data.csv"
