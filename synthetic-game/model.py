@@ -5,7 +5,7 @@ from bots import SyntheticABot
 
 class Dialog_Bots(object):
 	def __init__(self, config):
-		""" Sets up the configuration parameters, creates Q Bot + A Bot. 
+		""" Sets up the configuration parameters, creates Q Bot + A Bot.
 		"""
 		self.config=config
 		self.Qbot = SyntheticQBot(self.config.Q)
@@ -14,7 +14,7 @@ class Dialog_Bots(object):
 	def run_dialog(self, minibatch, batch_size=self.config.batch_size, rounds_dialog=2):
 		""" Runs dialog for specified number of rounds:
 				1) Q Bot asks question
-				2) A Bot answers question based on history 
+				2) A Bot answers question based on history
 				3) A Bot encodes question for later usage in it's history
 				4) Q bot encodes the answer and updates state history
         Args:
@@ -29,14 +29,14 @@ class Dialog_Bots(object):
 		captions = [caption for _, caption, _ in minibatch]
 		q_bot_states = self.Qbot.encode_captions(captions)
 		a_bot_states  = self.Abot.encode_captions_images(captions, images)
-		q_bot_trajectories = [] * batch_size
-		a_bot_trajectories = [] * batch_size
+		q_bot_trajectories = [[] for _ in xrange(batch_size)]
+		a_bot_trajectories = [[] for _ in xrange(batch_size)]
 		a_bot_recent_facts = [(-1, -1)] * batch_size # Sentinels for A Bot Fact 0
-		q_bot_facts = [] 
+		q_bot_facts = []
 		guesses = []
 		for _ in xrange(rounds_dialog):
 			questions = self.Qbot.get_questions(q_bot_states) # QBot generates questions (Q_t)
-			for i, q in enumerate(questions): # Append to trajectory 
+			for i, q in enumerate(questions): # Append to trajectory
 				q_bot_trajectories[i].append((q_bot_states[-1], q))
 
 			question_encodings = self.Abot.encode_questions(questions) # ABot encodes questions (Q_t)
@@ -50,7 +50,7 @@ class Dialog_Bots(object):
 			answers = self.Abot.decode_answers(a_bot_states) # ABot generates answers (A_t)
 			a_bot_recent_facts = self.Abot.encode_facts(question_encodings, answers) # ABot generates facts (F_t)
 			# TODO: How do we account for the first state (image, caption)? It doesn't yield an action.
-			for i, a in enumerate(answers): # Append to trajectory 
+			for i, a in enumerate(answers): # Append to trajectory
 				a_bot_trajectories[i].append((a_bot_states[-1], a))
 
 			q_bot_facts = self.Qbot.encode_facts(questions, answers) # QBot encodes facts (F_t)
@@ -68,7 +68,7 @@ class Dialog_Bots(object):
 		pass
 
 	def get_returns(self, trajectories, guesses, answers, gamma):
-		""" Gets returns for a list of trajectories. 
+		""" Gets returns for a list of trajectories.
 			+1 Reward if guess == answer
 			-1 Otherwise
 		"""
@@ -96,7 +96,7 @@ class Dialog_Bots(object):
 					state_action_counts[state][action] += 1
 					state_action_count = state_action_counts[state][action]
 					prev_q_val_contrib = ((bot.Q[state][action] + 0.0) / state_action_count) * (state_action_count - 1.0)
-					cur_update_contrib = (1.0 / state_action_count) * t_returns[r_index] 
+					cur_update_contrib = (1.0 / state_action_count) * t_returns[r_index]
 					cur_q_val = prev_q_val_contrib + cur_update_contrib
 					bot.Q[state][action] = cur_q_val
 
@@ -117,4 +117,4 @@ class Dialog_Bots(object):
 
 
 
-		 	
+

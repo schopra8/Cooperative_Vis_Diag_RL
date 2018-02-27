@@ -15,24 +15,24 @@ class SyntheticQBot(QBot):
 
         # {epsilon, num_actions, num_classes}
         self.config = config
-    
+
     def encode_captions(self, captions):
         """Encodes captions.
 
         Args:
             captions: [Batch Size, Caption Encoding Dimensions]
         Returns:
-            captions: encoded captions  
+            captions: encoded captions
         """
         return [((c)) for c in captions] # [((c1)), ((c2))]
-    
+
     def encode_facts(self, questions, answers):
         """Encodes questions and answers into facts (Fact Encoder)
 
         Args:
             questions [Batch Size]: List of ints, where int represents question asked
                                       by the Q-Bot in the most recent round
-            answers [Batch Size]: List of ints, where int represents an answer by the A-Bot 
+            answers [Batch Size]: List of ints, where int represents an answer by the A-Bot
                                       to the questions
         Returns:
             fact (tuple): An encoded fact that combines the question and answer
@@ -93,7 +93,7 @@ class SyntheticQBot(QBot):
         Returns:
             questions: questions that Q Bot will ask [Batch Size, 1]
         """
-        optimal_questions = self.decode_questions(states) 
+        optimal_questions = self.decode_questions(states)
         def get_question(optimal_question):
             if np.random.rand() < self.config.epsilon:
                 return np.random.choice(self.config.num_actions)
