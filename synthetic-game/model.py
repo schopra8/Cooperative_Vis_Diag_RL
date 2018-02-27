@@ -2,6 +2,8 @@ import numpy as np
 from collections import defaultdict
 from bots import SyntheticQBot
 from bots import SyntheticABot
+from config import config
+import os
 
 class Dialog_Bots(object):
 	def __init__(self, config):
@@ -11,7 +13,7 @@ class Dialog_Bots(object):
 		self.Qbot = SyntheticQBot(self.config.Q)
 		self.Abot = SyntheticABot(self.config.A)
 
-	def run_dialog(self, minibatch, batch_size=self.config.batch_size, rounds_dialog=2):
+	def run_dialog(self, minibatch, batch_size, rounds_dialog=2):
 		""" Runs dialog for specified number of rounds:
 				1) Q Bot asks question
 				2) A Bot answers question based on history
@@ -67,7 +69,7 @@ class Dialog_Bots(object):
 
 	def get_minibatches(self, batch_size=20):
 		# TODO Implement batching of captions, images
-		data = np.loadtxt(os.path.join(self.config.DATA_DIR,self.config.DATA_FILE), skiprows=1)
+		data = np.loadtxt(os.path.join(self.config.DATA_DIR, self.config.DATA_FILE), skiprows=1)
 		data = np.random.shuffle(data)
 		caption_lookup = {0: [0,1], 1: [0,2], 2:[1,0], 3:[1,2], 4: [2,0], 5:[2,1]}
 		i = 0
@@ -143,9 +145,6 @@ class Dialog_Bots(object):
 			sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
 			print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
 			
-			
-
-
-
-
-
+if __name__ == '__main__':
+	db = Dialog_Bots(config)
+	db.train()

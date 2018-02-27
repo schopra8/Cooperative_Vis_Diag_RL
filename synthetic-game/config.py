@@ -1,10 +1,6 @@
 import tensorflow as tf
 
 class config():
-  
-## Parameters for Qbot
-    A = A()
-    Q = Q()
     class Q():
     #Vocabulary size for Q bot
         num_actions = 3
@@ -36,4 +32,5 @@ class config():
     batch_size = 20
 ##Output files
     output_dir = "./results/"
-    data_dir = 
+    DATA_DIR = "../synthetic_data/"
+    DATA_FILE = "synthetic_data.csv"
