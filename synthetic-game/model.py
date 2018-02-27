@@ -2,7 +2,6 @@ import numpy as np
 from collections import defaultdict
 from bots import SyntheticQBot
 from bots import SyntheticABot
-from config import config
 import os
 
 class Dialog_Bots(object):
@@ -145,6 +144,3 @@ class Dialog_Bots(object):
 			sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
 			print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
 			
-if __name__ == '__main__':
-	db = Dialog_Bots(config)
-	db.train()
