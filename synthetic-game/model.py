@@ -2,7 +2,6 @@ import numpy as np
 from collections import defaultdict
 from bots import SyntheticQBot
 from bots import SyntheticABot
-from config import config
 import os
 
 class Dialog_Bots(object):
@@ -150,3 +149,4 @@ class Dialog_Bots(object):
 if __name__ == '__main__':
 	db = Dialog_Bots(config)
 	db.train()
+

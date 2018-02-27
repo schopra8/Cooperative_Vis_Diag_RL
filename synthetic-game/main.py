@@ -5,5 +5,8 @@ from config import config
 def main():
 	model=Dialog_Bots(config)
 	model.train()
-	model.generate_graphs()
-	model.show_dialog(image, caption)
+	# model.generate_graphs()
+	# model.show_dialog(image, caption)
+
+if __name__ == '__main__':
+	main()
