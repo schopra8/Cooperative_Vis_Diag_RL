@@ -37,8 +37,7 @@ class SyntheticQBot(QBot):
         Returns:
             fact (tuple): An encoded fact that combines the question and answer
         """
-        self.new_facts = zip(questions, answers)
-        return self.new_facts
+        return zip(questions, answers)
 
     def encode_state_histories(self, prev_states, facts):
         """Encodes the state as a combination of facts (State/History Encoder)
