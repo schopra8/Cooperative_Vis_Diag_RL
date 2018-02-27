@@ -126,10 +126,14 @@ class Dialog_Bots(object):
 		average_rewards_across_training = []
 		q_bot_state_action_counts = defaultdict(lambda: np.zeros(self.config.Q.num_actions))
 		a_bot_state_action_counts = defaultdict(lambda: np.zeros(self.config.A.num_actions))
+		minibatch_generator = self.get_minibatches(batch_size)
 		for i in xrange(num_iterations):
-			minibatch = self.get_minibatches(batch_size)
+			minibatch = minibatch_generator.next()
+			images, captions, labels = [], [], []
 			for (image, caption, label) in minibatch:
-				print image, caption, label
+				images.append(image)
+				captions.append(caption)
+				labels.append(label)
 
 			labels = [label for _, _, label in minibatch]
 			predictions, q_bot_trajectories, a_bot_trajectories = self.run_dialog(minibatch, batch_size, max_dialog_rounds)
