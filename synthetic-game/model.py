@@ -64,7 +64,22 @@ class Dialog_Bots(object):
 
 	def get_minibatches(self, batch_size=20):
 		# TODO Implement batching of captions, images
-		pass
+		self.config.DATA_DIR
+		data = np.loadtxt(os.path.join(self.config.DATA_DIR,self.config.DATA_FILE), skiprows = 1)
+		data = np.random.shuffle(data)
+		caption_lookup = {0: [0,1], 1: [0,2], 2:[1,0], 3:[1,2], 4: [2,0], 5:[2,1]}
+		i = 0
+		size = data.shape[0]
+		while True:
+			batch_data = data[i%size:(i%size+batch_size),:]
+			images = batch_data[:,:2]
+			captions = batch_data [:,2:4]
+			#generate answers from data_file
+			answers = np.asarray([])
+			for i in images.shape[0]:
+				np.append(answers, np.images[i,caption_lookup[captions[i]]], axis = 0)
+			i += batch_size
+			yield zip(images, captions, answers)
 
 	def get_returns(self, trajectories, guesses, answers, gamma):
 		""" Gets returns for a list of trajectories.
