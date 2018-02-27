@@ -1,4 +1,3 @@
-import tensorflow as tf
 import numpy as np
 from collections import defaultdict
 from bots import SyntheticQBot
@@ -11,45 +10,29 @@ class Dialog_Bots(object):
 		self.config=config
 		self.Qbot = SyntheticQBot(self.config.Q)
 		self.Abot = SyntheticABot(self.config.A)
-		self.sess = tf.Session()
 
-	def add_placeholders(self):
-		""" Construct placeholders for images and captions, for TF Graph.
-        """
-		self.image_placeholder = tf.placeholder(dtype = tf.int32, shape = [None, self.config.input_dimension])
-		self.caption_placeholder = tf.placeholder(dtype = tf.int32, shape = [None, self.config.caption_dimension])
-
-
-	def create_feed_dict(self, inputs, captions):
-		""" Construct feed dict for images and camptions.
-		"""
-		feed_dict = {
-			self.image_placeholder : inputs,
-			self.caption_placeholder : captions
-		}
-		return feed_dict
-
-	def run_dialog(self, batch_size=self.config.batch_size, rounds_dialog=2, synthetic=True):
+	def run_dialog(self, minibatch, batch_size=self.config.batch_size, rounds_dialog=2):
 		""" Runs dialog for specified number of rounds:
 				1) Q Bot asks question
 				2) A Bot answers question based on history 
 				3) A Bot encodes question for later usage in it's history
 				4) Q bot encodes the answer and updates state history
         Args:
+			minibatch = [(image, caption, solution)]
+			batch_size = num items in a batch
             rounds_dialog (int): Number of times this must repeat
         Returns:
             answer: The predictions of the Q bot at the end of (every) dialog
         """
 		#First encode the caption and image in both bots
-		q_bot_states = self.Qbot.encode_captions(self.caption_placeholder)
-		a_bot_states  = self.Abot.encode_captions_images(self.caption_placeholder, self.image_placeholder)
+		images = [image for image, _, _ in minibatch]
+		captions = [caption for _, caption, _ in minibatch]
+		q_bot_states = self.Qbot.encode_captions(captions)
+		a_bot_states  = self.Abot.encode_captions_images(captions, images)
 		q_bot_trajectories = [] * batch_size
 		a_bot_trajectories = [] * batch_size
-		if synthetic:
-			a_bot_recent_facts = [(-1, -1)] * batch_size # Sentinels for A Bot Fact 0
-			q_bot_facts = [] 
-		else:
-			pass # TODO: Not Yet Implemented
+		a_bot_recent_facts = [(-1, -1)] * batch_size # Sentinels for A Bot Fact 0
+		q_bot_facts = [] 
 		guesses = []
 		for _ in xrange(rounds_dialog):
 			questions = self.Qbot.get_questions(q_bot_states) # QBot generates questions (Q_t)
@@ -58,8 +41,8 @@ class Dialog_Bots(object):
 
 			question_encodings = self.Abot.encode_questions(questions) # ABot encodes questions (Q_t)
 			a_bot_states = self.Abot.encode_state_histories(	# ABot encodes states (State, Y, C, Q_t, F_{t-1})
-				self.image_placeholder,
-				self.caption_placeholder,
+				images,
+				captions,
 				question_encodings,
 				a_bot_recent_facts,
 				a_bot_states
@@ -120,10 +103,9 @@ class Dialog_Bots(object):
 		q_bot_state_action_counts = defaultdict(lambda: np.zeros())
 		a_bot_state_action_counts = defaultdict(lambda: np.zeros())
 		for i in num_iterations:
-			inputs, captions, answers = self.get_minibatches(batch_size)
-			guess_op = self.run_dialog(batch_size, max_dialog_rounds)
-			feed = self.create_feed_dict(inputs, captions)
-			guesses, q_bot_trajectories, a_bot_trajectories = self.sess.run(guess_op, feed_dict = feed)
+			minibatch = self.get_minibatches(batch_size)
+			answers = [answer for _, _, answer in minibatch]
+			guesses, q_bot_trajectories, a_bot_trajectories = self.run_dialog(minibatch, batch_size, max_dialog_rounds)
 			update_q_bot = i % 2 == 0
 			if update_q_bot:
 				returns = self.get_returns(q_bot_trajectories, guesses, answers, self.config.Q.gamma)
