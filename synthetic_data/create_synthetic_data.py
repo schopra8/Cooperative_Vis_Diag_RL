@@ -26,4 +26,4 @@ captions = np.arange(num_captions)
 data=np.asarray(data)
 data = np.concatenate([np.repeat(data,num_captions, axis = 0),np.expand_dims(np.tile(captions.T,data.shape[0]),1)], axis = 1)
 
-np.savetxt('synthetic_data.csv', data, fmt=save_type, delimiter=',', header="Shape, Color, Fill")
+np.savetxt('synthetic_data.csv', data, fmt=save_type, delimiter=',', header="Shape, Color, Fill, Caption")
