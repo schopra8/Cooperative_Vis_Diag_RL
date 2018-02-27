@@ -76,11 +76,7 @@ class Dialog_Bots(object):
 			batch_data = data[i%size:(i%size+batch_size),:]
 			images = batch_data[:,:3]
 			captions = batch_data [:,3]
-			#generate labels from data_file
-			labels = np.asarray([])
-			for i in images.shape[0]:
-				np.append(labels, images[i,caption_lookup[captions[i]]], axis=0)
-			i += batch_size
+			labels = batch_data[:,4]
 			yield zip(images, captions, labels)
 
 	def get_returns(self, trajectories, predictions, labels, gamma):
