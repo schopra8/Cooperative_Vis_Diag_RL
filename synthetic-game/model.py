@@ -67,9 +67,8 @@ class Dialog_Bots(object):
 		return predictions, q_bot_trajectories, a_bot_trajectories
 
 	def get_minibatches(self, batch_size=20):
-		# TODO Implement batching of captions, images
-		data = np.loadtxt(os.path.join(self.config.DATA_DIR, self.config.DATA_FILE), skiprows=1)
-		data = np.random.shuffle(data)
+		data = np.loadtxt(os.path.join(self.config.DATA_DIR, self.config.DATA_FILE), skiprows=1, delimiter=',')
+		np.random.shuffle(data)
 		caption_lookup = {0: [0,1], 1: [0,2], 2:[1,0], 3:[1,2], 4: [2,0], 5:[2,1]}
 		i = 0
 		size = data.shape[0]
@@ -129,6 +128,9 @@ class Dialog_Bots(object):
 		a_bot_state_action_counts = defaultdict(lambda: np.zeros(self.config.A.num_actions))
 		for i in xrange(num_iterations):
 			minibatch = self.get_minibatches(batch_size)
+			for (image, caption, label) in minibatch:
+				print image, caption, label
+
 			labels = [label for _, _, label in minibatch]
 			predictions, q_bot_trajectories, a_bot_trajectories = self.run_dialog(minibatch, batch_size, max_dialog_rounds)
 			update_q_bot = i % 2 == 0
