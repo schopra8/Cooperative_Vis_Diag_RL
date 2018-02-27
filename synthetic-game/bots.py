@@ -37,8 +37,7 @@ class SyntheticQBot(QBot):
         Returns:
             fact (tuple): An encoded fact that combines the question and answer
         """
-        self.new_facts = zip(questions, answers)
-        return self.new_facts
+        return zip(questions, answers)
 
     def encode_state_histories(self, prev_states, facts):
         """Encodes the state as a combination of facts (State/History Encoder)
@@ -108,17 +107,17 @@ class SyntheticABot(ABot):
         # {epsilon, num_actions}
         self.config = config
 
-    def encode_captions_images(self, captions, images):
-        """Encodes the captions and the images into the states
+    def encode_images_captions(self, images, captions):
+        """Encodes the images and the captions into the states
 
         Args:
-            captions [Batch Size, Caption] : Gives the captions for the current round of dialog
             images [Batch Size, Image] : The images for the dialog
+            captions [Batch Size, Caption] : Gives the captions for the current round of dialog
         Return:
-            encoded_cap_im = [((Image, Caption)), ...]
+            encoded_im_cap = [((Image, Caption)), ...]
         """
-        encoded_cap_im = zip(images, captions)
-        return [(cap_im) for cap_im in encoded_cap_im]
+        encoded_im_cap = zip(images, captions)
+        return [(im_cap) for im_cap in encoded_im_cap]
 
     def encode_questions(self, questions):
         """Encodes questions (Question Encoder)
@@ -142,7 +141,7 @@ class SyntheticABot(ABot):
         facts = zip(questions, answers)
         return facts
 
-    def encode_state_histories(self, images, captions, question_encodings, recent_facts, prev_states):
+    def encode_state_histories(self, images, question_encodings, recent_facts, prev_states):
         """Encodes states as a combination of facts (State/History Encoder)
 
         Args:
@@ -151,8 +150,8 @@ class SyntheticABot(ABot):
         Returns:
             state: encoded states that combine question_encodings and facts
         """
-        new_states = zip(images, captions, question_encodings, recent_facts)
-        histories = [state + new_states[i] for i, state in enumerate states]
+        new_states = zip(images, question_encodings, recent_facts)
+        histories = [state + new_states[i] for i, state in enumerate(states)]
         return histories
 
     def decode_answers(self, states):

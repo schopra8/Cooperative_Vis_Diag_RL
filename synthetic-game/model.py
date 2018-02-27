@@ -37,12 +37,11 @@ class Dialog_Bots(object):
 		for _ in xrange(rounds_dialog):
 			questions = self.Qbot.get_questions(q_bot_states) # QBot generates questions (Q_t)
 			for i, q in enumerate(questions): # Append to trajectory
-				q_bot_trajectories[i].append((q_bot_states[-1], q))
+				q_bot_trajectories[i].append((q_bot_states[i], q))
 
 			question_encodings = self.Abot.encode_questions(questions) # ABot encodes questions (Q_t)
-			a_bot_states = self.Abot.encode_state_histories(	# ABot encodes states (State, Y, C, Q_t, F_{t-1})
+			a_bot_states = self.Abot.encode_state_histories(	# ABot encodes states (State, Y, Q_t, F_{t-1})
 				images,
-				captions,
 				question_encodings,
 				a_bot_recent_facts,
 				a_bot_states
@@ -51,7 +50,7 @@ class Dialog_Bots(object):
 			a_bot_recent_facts = self.Abot.encode_facts(question_encodings, answers) # ABot generates facts (F_t)
 			# TODO: How do we account for the first state (image, caption)? It doesn't yield an action.
 			for i, a in enumerate(answers): # Append to trajectory
-				a_bot_trajectories[i].append((a_bot_states[-1], a))
+				a_bot_trajectories[i].append((a_bot_states[i], a))
 
 			q_bot_facts = self.Qbot.encode_facts(questions, answers) # QBot encodes facts (F_t)
 			q_bot_states = self.Qbot.encode_state_histories(q_bot_states, q_bot_facts) # QBot encode states
