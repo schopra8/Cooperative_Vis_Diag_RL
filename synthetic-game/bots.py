@@ -24,7 +24,7 @@ class SyntheticQBot(QBot):
         Returns:
             captions: encoded captions  
         """
-        return [((c)) for c in list(captions.eval())] # [((c1)), ((c2))]
+        return [((c)) for c in captions] # [((c1)), ((c2))]
     
     def encode_facts(self, questions, answers):
         """Encodes questions and answers into facts (Fact Encoder)
@@ -117,7 +117,7 @@ class SyntheticABot(ABot):
         Return:
             encoded_cap_im = [((Image, Caption)), ...]
         """
-        encoded_cap_im = zip(list(images.eval()), list(captions.eval()))
+        encoded_cap_im = zip(images, captions)
         return [(cap_im) for cap_im in encoded_cap_im]
 
     def encode_questions(self, questions):
