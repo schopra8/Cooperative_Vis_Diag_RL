@@ -27,10 +27,10 @@ class Dialog_Bots(object):
             answer: The predictions of the Q bot at the end of (every) dialog
         """
 		#First encode the caption and image in both bots
-		images = [image for image, _, _ in minibatch]
+		images = [tuple(image) for image, _, _ in minibatch]
 		captions = [caption for _, caption, _ in minibatch]
 		q_bot_states = self.Qbot.encode_captions(captions)
-		a_bot_states  = self.Abot.encode_captions_images(captions, images)
+		a_bot_states  = self.Abot.encode_images_captions(images, captions)
 		q_bot_trajectories = [[] for _ in xrange(batch_size)]
 		a_bot_trajectories = [[] for _ in xrange(batch_size)]
 		a_bot_recent_facts = [(-1, -1)] * batch_size # Sentinels for A Bot Fact 0
@@ -38,6 +38,7 @@ class Dialog_Bots(object):
 		predictions = []
 		for _ in xrange(rounds_dialog):
 			questions = self.Qbot.get_questions(q_bot_states) # QBot generates questions (Q_t)
+			print questions[0]
 			for i, q in enumerate(questions): # Append to trajectory
 				q_bot_trajectories[i].append((q_bot_states[i], q))
 
@@ -48,7 +49,10 @@ class Dialog_Bots(object):
 				a_bot_recent_facts,
 				a_bot_states
 			)
+			print a_bot_states[0]
 			answers = self.Abot.decode_answers(a_bot_states) # ABot generates answers (A_t)
+			print answers[0]
+			exit()
 			a_bot_recent_facts = self.Abot.encode_facts(question_encodings, answers) # ABot generates facts (F_t)
 			# TODO: How do we account for the first state (image, caption)? It doesn't yield an action.
 			for i, a in enumerate(answers): # Append to trajectory
@@ -69,7 +73,7 @@ class Dialog_Bots(object):
 
 	def get_minibatches(self, batch_size=20):
 		data = np.loadtxt(os.path.join(self.config.DATA_DIR, self.config.DATA_FILE), skiprows=1, delimiter=',')
-		np.random.shuffle(data)
+		# np.random.shuffle(data)
 		caption_lookup = {0: [0,1], 1: [0,2], 2:[1,0], 3:[1,2], 4: [2,0], 5:[2,1]}
 		i = 0
 		size = data.shape[0]
@@ -150,7 +154,7 @@ class Dialog_Bots(object):
 			average_rewards_across_training.append(avg_reward)
 			sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
 			print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
-		
+
 		def show_dialog(self, image,caption,answer,batch_size = 1, rounds_dialog=2):
 			batch = (image,caption,-1)
 			output, q_bot_trajectory, a_bot_trajectory = self.run_dialog(minibatch, batch_size=self.config.batch_size, rounds_dialog=2)
@@ -160,7 +164,7 @@ class Dialog_Bots(object):
 				print "Qbot question:" + string(q_bot_trajectory[i])+"\n"
 				print "Abot answer:" + string(a_bot_trajectory[i]) + "\n"
 				i+=2
-			
+
 if __name__ == '__main__':
 	db = Dialog_Bots(config)
 	db.train()

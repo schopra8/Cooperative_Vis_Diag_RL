@@ -1,7 +1,7 @@
 class ABot(object):
     """Abstracts an A-Bot for answering questions about a photo
     """
-    def encode_captions_images(self, captions, images):
+    def encode_images_captions(self, captions, images):
         """Encodes the captions and the images into the states
 
         Args:

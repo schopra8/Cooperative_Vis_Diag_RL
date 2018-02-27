@@ -24,7 +24,7 @@ class SyntheticQBot(QBot):
         Returns:
             captions: encoded captions
         """
-        return [((c)) for c in captions] # [((c1)), ((c2))]
+        return [((c),) for c in captions] # [((c1)), ((c2))]
 
     def encode_facts(self, questions, answers):
         """Encodes questions and answers into facts (Fact Encoder)
@@ -117,7 +117,7 @@ class SyntheticABot(ABot):
             encoded_im_cap = [((Image, Caption)), ...]
         """
         encoded_im_cap = zip(images, captions)
-        return [(im_cap) for im_cap in encoded_im_cap]
+        return [((im_cap),) for im_cap in encoded_im_cap]
 
     def encode_questions(self, questions):
         """Encodes questions (Question Encoder)
@@ -151,7 +151,7 @@ class SyntheticABot(ABot):
             state: encoded states that combine question_encodings and facts
         """
         new_states = zip(images, question_encodings, recent_facts)
-        histories = [state + new_states[i] for i, state in enumerate(states)]
+        histories = [state + (tuple(new_states[i]),) for i, state in enumerate(prev_states)]
         return histories
 
     def decode_answers(self, states):
@@ -162,6 +162,7 @@ class SyntheticABot(ABot):
         Returns:
             answer: answers
         """
+        print states[0]
         answers = [np.argmax(self.Q[state]) for state in states]
         return answers
 
