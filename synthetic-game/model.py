@@ -76,11 +76,7 @@ class Dialog_Bots(object):
 			batch_data = data[i%size:(i%size+batch_size),:]
 			images = batch_data[:,:3]
 			captions = batch_data [:,3]
-			#generate labels from data_file
-			labels = np.asarray([])
-			for i in images.shape[0]:
-				np.append(labels, images[i,caption_lookup[captions[i]]], axis=0)
-			i += batch_size
+			labels = batch_data[:,4]
 			yield zip(images, captions, labels)
 
 	def get_returns(self, trajectories, predictions, labels, gamma):
@@ -88,18 +84,19 @@ class Dialog_Bots(object):
 			+1 Reward if guess == answer
 			-1 Otherwise
 		"""
-		# TODO: Confirm the reward structure
 		all_returns = []
+		all_rewards = []
 		for i in xrange(len(predictions)):
 			path_returns = [0] * len(trajectories[i])
 			if predictions[i] == labels[i]:
 				final_reward = 1.0
 			else:
 				final_reward = -1.0
+			all_rewards.append(final_reward)
 			discount_factors = np.power(gamma, np.arange(len(trajectories[i]), -1 ,-1))
 			path_returns = final_reward * np.ones(len(trajectories[i])) * discount_factors
 			all_returns.append(path_returns)
-		return all_returns
+		return all_returns, all_rewards
 
 	def train(self, batch_size=20, num_iterations=500, max_dialog_rounds=2):
 		def apply_updates(bot, trajectories, all_returns, state_action_counts):
@@ -126,6 +123,7 @@ class Dialog_Bots(object):
 				final_action = predictions[dialog_index]
 				bot.Q[final_state][final_action] = final_return
 
+		average_rewards_across_training = []
 		q_bot_state_action_counts = defaultdict(lambda: np.zeros(self.config.Q.num_actions))
 		a_bot_state_action_counts = defaultdict(lambda: np.zeros(self.config.A.num_actions))
 		for i in xrange(num_iterations):
@@ -134,12 +132,18 @@ class Dialog_Bots(object):
 			predictions, q_bot_trajectories, a_bot_trajectories = self.run_dialog(minibatch, batch_size, max_dialog_rounds)
 			update_q_bot = i % 2 == 0
 			if update_q_bot:
-				returns = self.get_returns(q_bot_trajectories, predictions, labels, self.config.Q.gamma)
+				returns, rewards = self.get_returns(q_bot_trajectories, predictions, labels, self.config.Q.gamma)
 				apply_updates(self.Qbot, q_bot_trajectories, returns, q_bot_state_action_counts)
 				apply_regression_updates(self.Qbot, q_bot_trajectories, predictions, returns)
-			else:  # update a_bot
-				returns = self.get_returns(a_bot_trajectories, predictions, labels, self.config.A.gamma)
+			else:
+				returns, rewards = self.get_returns(a_bot_trajectories, predictions, labels, self.config.A.gamma)
 				apply_updates(self.Abot, a_bot_trajectories, returns, a_bot_state_action_counts)
+			avg_reward = np.mean(rewards)
+			average_rewards_across_training.append(avg_reward)
+			sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
+			print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
+			
+			
 
 
 
