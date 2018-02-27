@@ -33,7 +33,7 @@ class Dialog_Bots(object):
 		a_bot_trajectories = [[] for _ in xrange(batch_size)]
 		a_bot_recent_facts = [(-1, -1)] * batch_size # Sentinels for A Bot Fact 0
 		q_bot_facts = []
-		guesses = []
+		predictions = []
 		for _ in xrange(rounds_dialog):
 			questions = self.Qbot.get_questions(q_bot_states) # QBot generates questions (Q_t)
 			for i, q in enumerate(questions): # Append to trajectory
@@ -55,17 +55,19 @@ class Dialog_Bots(object):
 			q_bot_facts = self.Qbot.encode_facts(questions, answers) # QBot encodes facts (F_t)
 			q_bot_states = self.Qbot.encode_state_histories(q_bot_states, q_bot_facts) # QBot encode states
 			if self.config.guess_every_round:
-				guesses.append(self.Qbot.generate_image_representations(q_bot_states))
+				predictions.append(self.Qbot.generate_image_predictions(q_bot_states))
 
 		if not self.config.guess_every_round:
-			guesses = self.Qbot.generate_image_representations(q_bot_states)
+			predictions = self.Qbot.generate_image_predictions(q_bot_states)
 
-		return guesses, q_bot_trajectories, a_bot_trajectories
+		for i, q_bot_trajectory in enumerate(q_bot_trajectories):
+			q_bot_trajectory.append((q_bot_states[i], -1))
+
+		return predictions, q_bot_trajectories, a_bot_trajectories
 
 	def get_minibatches(self, batch_size=20):
 		# TODO Implement batching of captions, images
-		self.config.DATA_DIR
-		data = np.loadtxt(os.path.join(self.config.DATA_DIR,self.config.DATA_FILE), skiprows = 1)
+		data = np.loadtxt(os.path.join(self.config.DATA_DIR,self.config.DATA_FILE), skiprows=1)
 		data = np.random.shuffle(data)
 		caption_lookup = {0: [0,1], 1: [0,2], 2:[1,0], 3:[1,2], 4: [2,0], 5:[2,1]}
 		i = 0
@@ -74,58 +76,69 @@ class Dialog_Bots(object):
 			batch_data = data[i%size:(i%size+batch_size),:]
 			images = batch_data[:,:2]
 			captions = batch_data [:,2:4]
-			#generate answers from data_file
-			answers = np.asarray([])
+			#generate labels from data_file
+			labels = np.asarray([])
 			for i in images.shape[0]:
-				np.append(answers, np.images[i,caption_lookup[captions[i]]], axis = 0)
+				np.append(labels, np.images[i,caption_lookup[captions[i]]], axis = 0)
 			i += batch_size
-			yield zip(images, captions, answers)
+			yield zip(images, captions, labels)
 
-	def get_returns(self, trajectories, guesses, answers, gamma):
+	def get_returns(self, trajectories, predictions, labels, gamma):
 		""" Gets returns for a list of trajectories.
 			+1 Reward if guess == answer
 			-1 Otherwise
 		"""
 		# TODO: Confirm the reward structure
 		all_returns = []
-		for i, g in enumerate(guesses):
+		for i in xrange(len(predictions)):
 			path_returns = [0] * len(trajectories[i])
-			if g == answers[i]:
+			if predictions[i] == labels[i]:
 				final_reward = 1.0
 			else:
 				final_reward = -1.0
-			discount_factors = np.power(gamma, np.arange(len(trajectories[i])))
-			path_returns = list(np.multiply(final_reward * np.ones(len(trajectories[i]), discount_factors)))
+			discount_factors = np.power(gamma, np.arange(len(trajectories[i]), -1 ,-1))
+			path_returns = final_reward * np.ones(len(trajectories[i])) * discount_factors
 			all_returns.append(path_returns)
 		return all_returns
 
-	def train(self, batch_size=20, num_iterations=500, max_dialog_rounds=1):
-		def apply_updates(bot, trajectories, returns, state_action_counts):
+	def train(self, batch_size=20, num_iterations=500, max_dialog_rounds=2):
+		def apply_updates(bot, trajectories, all_returns, state_action_counts):
 			""" Get Q-Learning updates that should be applied to a bot.
 				We compute the running average of each state, action -> reward.
 			"""
-			for t_index, t in enumerate(trajectories):
-				t_returns = returns[t_index]
-				for r_index, (state, action) in enumerate(t):
+			for dialog_index, trajectory in enumerate(trajectories):  # for each dialog
+				returns = all_returns[dialog_index]
+				for timestep, (state, action) in enumerate(trajectory):
 					state_action_counts[state][action] += 1
 					state_action_count = state_action_counts[state][action]
-					prev_q_val_contrib = ((bot.Q[state][action] + 0.0) / state_action_count) * (state_action_count - 1.0)
-					cur_update_contrib = (1.0 / state_action_count) * t_returns[r_index]
+					prev_q_val_contrib = (float(bot.Q[state][action]) / state_action_count) * (state_action_count - 1.0)
+					cur_update_contrib = (1.0 / state_action_count) * returns[timestep]
 					cur_q_val = prev_q_val_contrib + cur_update_contrib
 					bot.Q[state][action] = cur_q_val
 
-		q_bot_state_action_counts = defaultdict(lambda: np.zeros())
-		a_bot_state_action_counts = defaultdict(lambda: np.zeros())
-		for i in num_iterations:
+		def apply_regression_updates(bot, trajectories, predictions, all_returns):
+			""" Get Q-Learning updates that should be applied to Q-bot's regression network.
+				We set Q-regression-value of each state, action -> reward.
+			"""
+			for dialog_index, trajectory in enumerate(trajectories):  # for each dialog
+				final_return = all_returns[dialog_index][-1]
+				final_state, _ = trajectory[-1]
+				final_action = predictions[dialog_index]
+				bot.Q[final_state][final_action] = final_return
+
+		q_bot_state_action_counts = defaultdict(lambda: np.zeros(self.config.Q.num_actions))
+		a_bot_state_action_counts = defaultdict(lambda: np.zeros(self.config.A.num_actions))
+		for i in xrange(num_iterations):
 			minibatch = self.get_minibatches(batch_size)
-			answers = [answer for _, _, answer in minibatch]
-			guesses, q_bot_trajectories, a_bot_trajectories = self.run_dialog(minibatch, batch_size, max_dialog_rounds)
+			labels = [label for _, _, label in minibatch]
+			predictions, q_bot_trajectories, a_bot_trajectories = self.run_dialog(minibatch, batch_size, max_dialog_rounds)
 			update_q_bot = i % 2 == 0
 			if update_q_bot:
-				returns = self.get_returns(q_bot_trajectories, guesses, answers, self.config.Q.gamma)
+				returns = self.get_returns(q_bot_trajectories, predictions, labels, self.config.Q.gamma)
 				apply_updates(self.Qbot, q_bot_trajectories, returns, q_bot_state_action_counts)
-			else:
-				returns = self.get_returns(a_bot_trajectories, guesses, answers, self.config.A.gamma)
+				apply_regression_updates(self.Qbot, q_bot_trajectories, predictions, returns)
+			else:  # update a_bot
+				returns = self.get_returns(a_bot_trajectories, predictions, labels, self.config.A.gamma)
 				apply_updates(self.Abot, a_bot_trajectories, returns, a_bot_state_action_counts)
 
 

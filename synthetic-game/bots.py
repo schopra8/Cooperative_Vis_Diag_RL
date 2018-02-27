@@ -62,7 +62,7 @@ class SyntheticQBot(QBot):
         questions = [np.argmax(self.Q[state]) for state in states]
         return questions
 
-    def generate_image_representations(self, states):
+    def generate_image_predictions(self, states):
         """Guesses an image given the current state (Feature Regression Network)
 
         Args:
@@ -70,8 +70,8 @@ class SyntheticQBot(QBot):
         Returns:
             image_representations [Batch Size, img_dim]: representation of the predicted images
         """
-        image_repr = [np.argmax(self.Q_regression[state]) for state in states]
-        return image_repr
+        predictions = [np.argmax(self.Q_regression[state]) for state in states]
+        return predictions
 
     def get_q_values(self, states):
         """Returns all Q-values for all actions given state
