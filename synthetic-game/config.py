@@ -12,7 +12,7 @@ class config():
         # epsilon_end = 0.1
         # epsilon_step = 0.001
     # discount factor
-        gamma = 1
+        gamma = 0.9
 ## Parameters for Abot
     class A():
     #Vocabulary size for A bot
@@ -23,7 +23,7 @@ class config():
         # epsilon_end = 0.1
         # epsilon_step = 0.001
     # discount factor
-        gamma = 1
+        gamma = 0.9
 
 ##Training parameters
     # Need Q bot to guess image representation at every round?
@@ -32,7 +32,7 @@ class config():
     max_dialog_rounds = 2
     # Batch Size
     batch_size = 100
-    num_iterations = 10000
+    num_iterations = 1000
 ##Output files
     output_dir = "./results/"
     DATA_DIR = "../synthetic_data/"

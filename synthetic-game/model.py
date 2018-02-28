@@ -13,23 +13,23 @@ class Dialog_Bots(object):
 		self.Abot = SyntheticABot(self.config.A)
 		self.eval_rewards = []
 
-	def run_dialog(self, minibatch, num_dialog_rounds=2):
+	def run_dialog(self, images, captions, num_dialog_rounds=2):
 		""" Runs dialog for specified number of rounds:
 				1) Q Bot asks question
 				2) A Bot answers question based on history
 				3) A Bot encodes question for later usage in it's history
 				4) Q bot encodes the answer and updates state history
         Args:
-			minibatch = [(image, caption, solution)]
+			images = [array(image)]
+			captions = [caption]
 			batch_size = num items in a batch
             num_dialog_rounds (int): Number of times this must repeat
         Returns:
             answer: The predictions of the Q bot at the end of (every) dialog
         """
 		#First encode the caption and image in both bots
-		batch_size = len(minibatch)
-		images = [tuple(image) for image, _, _ in minibatch]
-		captions = [caption for _, caption, _ in minibatch]
+		batch_size = len(images)
+		images = map(tuple, images)
 		q_bot_states = self.Qbot.encode_captions(captions)
 		a_bot_states  = self.Abot.encode_images_captions(images, captions)
 		q_bot_trajectories = [[] for _ in xrange(batch_size)]
@@ -78,7 +78,7 @@ class Dialog_Bots(object):
 			images = batch_data[:,:3]
 			captions = batch_data [:,3]
 			labels = batch_data[:,4]
-			yield zip(images, captions, labels)
+			yield images, captions, labels
 			i += batch_size
 
 	def get_returns(self, trajectories, predictions, labels, gamma):
@@ -103,6 +103,12 @@ class Dialog_Bots(object):
 		return all_returns, all_rewards
 
 	def train(self, batch_size=20, num_iterations=500, max_dialog_rounds=2):
+		def calculate_running_average(updated_count, prev_q_value, new_return):
+			prev_q_val_contrib = (float(prev_q_value) / updated_count) * (updated_count - 1.0)
+			cur_update_contrib = (1.0 / updated_count) * new_return
+			new_q_val = prev_q_val_contrib + cur_update_contrib
+			return new_q_val
+
 		def apply_updates(bot, trajectories, all_returns, state_action_counts):
 			""" Get Q-Learning updates that should be applied to a bot.
 				We compute the running average of each state, action -> reward.
@@ -115,13 +121,11 @@ class Dialog_Bots(object):
 					state_action_count = state_action_counts[state][action]
 					# print "state, action", state, action
 					# print "Q value", bot.Q[state][action]
-					prev_q_val_contrib = (float(bot.Q[state][action]) / state_action_count) * (state_action_count - 1.0)
-					cur_update_contrib = (1.0 / state_action_count) * returns[timestep]
-					cur_q_val = prev_q_val_contrib + cur_update_contrib
-					bot.Q[state][action] = cur_q_val
+					new_q_val = calculate_running_average(state_action_count, bot.Q[state][action], returns[timestep])
+					bot.Q[state][action] = new_q_val
 					# print "Q value", bot.Q[state][action]
 
-		def apply_regression_updates(bot, trajectories, predictions, all_returns):
+		def apply_regression_updates(bot, trajectories, predictions, all_returns, state_action_counts):
 			""" Get Q-Learning updates that should be applied to Q-bot's regression network.
 				We set Q-regression-value of each state, action -> reward.
 			"""
@@ -129,32 +133,34 @@ class Dialog_Bots(object):
 				final_return = all_returns[dialog_index][-1]
 				final_state, _ = trajectory[-1]
 				final_action = predictions[dialog_index]
+
+				state_action_counts[final_state][final_action] += 1
+				state_action_count = state_action_counts[final_state][final_action]
+
+				new_q_val = calculate_running_average(state_action_count, bot.Q_regression[final_state][final_action], final_return)
+				bot.Q_regression[final_state][final_action] = new_q_val
 				# print "final_state, final_action", final_state, final_action
 				# print "final Q value", bot.Q_regression[final_state][final_action]
-				bot.Q_regression[final_state][final_action] = final_return
+				# bot.Q_regression[final_state][final_action] = final_return
+				# if final_return == 1.0:
+				# 	print final_state
+				# 	print bot.Q_regression[final_state]
 				# print "final Q value", bot.Q_regression[final_state][final_action]
 
 		average_rewards_across_training = []
 		q_bot_state_action_counts = defaultdict(lambda: np.zeros(self.config.Q.num_actions))
+		q_bot_final_state_action_counts = defaultdict(lambda: np.zeros(self.config.Q.num_classes))
 		a_bot_state_action_counts = defaultdict(lambda: np.zeros(self.config.A.num_actions))
 		minibatch_generator = self.get_minibatches(batch_size)
 		for i in xrange(num_iterations):
-			minibatch = minibatch_generator.next()
-			# print "minibatch", minibatch
-			images, captions, labels = [], [], []
-			for (image, caption, label) in minibatch:
-				images.append(image)
-				captions.append(caption)
-				labels.append(label)
-
-			labels = [label for _, _, label in minibatch]
-			predictions, q_bot_trajectories, a_bot_trajectories = self.run_dialog(minibatch, max_dialog_rounds)
+			images, captions, labels = minibatch_generator.next()
+			predictions, q_bot_trajectories, a_bot_trajectories = self.run_dialog(images, captions, max_dialog_rounds)
 			update_q_bot = i % 2 == 0
 			if update_q_bot:
 				returns, rewards = self.get_returns(q_bot_trajectories, predictions, labels, self.config.Q.gamma)
 				# print self.Qbot.Q
 				apply_updates(self.Qbot, q_bot_trajectories, returns, q_bot_state_action_counts)
-				apply_regression_updates(self.Qbot, q_bot_trajectories, predictions, returns)
+				apply_regression_updates(self.Qbot, q_bot_trajectories, predictions, returns, q_bot_final_state_action_counts)
 				# print self.Qbot.Q
 				# print self.Qbot.Q_regression
 			else:
@@ -165,10 +171,11 @@ class Dialog_Bots(object):
 			average_rewards_across_training.append(avg_reward)
 			sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
 			print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
+		# print self.Qbot.Q_regression
 
-		def show_dialog(self, image, caption, answer, batch_size=1, rounds_dialog=2):
+		def show_dialog(self, image, caption, answer, batch_size=1, num_dialog_rounds=2):
 			batch = (image,caption,-1)
-			output, q_bot_trajectory, a_bot_trajectory = self.run_dialog(minibatch, batch_size=self.config.batch_size, rounds_dialog=2)
+			output, q_bot_trajectory, a_bot_trajectory = self.run_dialog(minibatch)
 			print "FINAL PREDICTION = " + string(output)
 			i=1
 			while i<4:
