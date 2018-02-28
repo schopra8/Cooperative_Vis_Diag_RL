@@ -202,6 +202,7 @@ class Dialog_Bots(object):
 			sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
 			if self.config.verbose:
 				print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
+			
 			#Evaluate with evaluation epsilon over a batch and store average rewards
 			if i%self.config.eval_every == 0:
 				if self.config.verbose:
@@ -237,11 +238,9 @@ class Dialog_Bots(object):
 		plt.plot(self.average_rewards_across_training, 'k',label = "Training rewards")
 		plt.xlabel("Iteration Number")
 		plt.ylabel("Rewards")
-		# plt.legend(loc = 'best')
 		plt.savefig(os.path.join(self.config.output_dir,'training_rewards.png'), bbox_inches = 'tight')
 		plt.figure(2)
 		plt.plot(self.eval_rewards, 'r', label = "Evaluations Rewards")
 		plt.xlabel("Evaluation episode Number")
 		plt.ylabel("Rewards")
-		# plt.legend(loc = 'best')
 		plt.savefig(os.path.join(self.config.output_dir,'evaluation_rewards.png'), bbox_inches = 'tight')
