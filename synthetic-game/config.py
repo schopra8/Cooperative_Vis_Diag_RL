@@ -6,8 +6,8 @@ class config():
         num_actions = 3
     # Possible guesses at the end
         num_classes = 144
-    #epsilon for exploration
-        epsilon = 0.4
+    #epsilon for greediness
+        epsilon = 0.6
         # epsilon_start = 1
         # epsilon_end = 0.1
         # epsilon_step = 0.001
@@ -17,8 +17,8 @@ class config():
     class A():
     #Vocabulary size for A bot
         num_actions = 4
-    #epsilon for exploration
-        epsilon = 0.4
+    #epsilon for greediness
+        epsilon = 0.6
         # epsilon_start = 1
         # epsilon_end = 0.1
         # epsilon_step = 0.001
@@ -32,7 +32,7 @@ class config():
     max_dialog_rounds = 2
     # Batch Size
     batch_size = 100
-    num_iterations = 1000
+    num_iterations = 10000
 ##Output files
     output_dir = "./results/"
     DATA_DIR = "../synthetic_data/"

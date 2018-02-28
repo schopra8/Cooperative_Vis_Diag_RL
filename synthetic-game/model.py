@@ -69,7 +69,7 @@ class Dialog_Bots(object):
 
 	def get_minibatches(self, batch_size=20):
 		data = np.loadtxt(os.path.join(self.config.DATA_DIR, self.config.DATA_FILE), skiprows=1, delimiter=',')
-		# np.random.shuffle(data)
+		np.random.shuffle(data)
 		caption_lookup = {0: [0,1], 1: [0,2], 2:[1,0], 3:[1,2], 4: [2,0], 5:[2,1]}
 		i = 0
 		size = data.shape[0]
