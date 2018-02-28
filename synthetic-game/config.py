@@ -31,8 +31,8 @@ class config():
     # Number of rounds of dialog before cutoff
     max_dialog_rounds = 2
     # Batch Size
-    batch_size = 20
-    num_iterations = 500
+    batch_size = 100
+    num_iterations = 1000
 ##Output files
     output_dir = "./results/"
     DATA_DIR = "../synthetic_data/"

@@ -13,7 +13,7 @@ class Dialog_Bots(object):
 		self.Abot = SyntheticABot(self.config.A)
 		self.eval_rewards = []
 
-	def run_dialog(self, minibatch, batch_size, rounds_dialog=2):
+	def run_dialog(self, minibatch, num_dialog_rounds=2):
 		""" Runs dialog for specified number of rounds:
 				1) Q Bot asks question
 				2) A Bot answers question based on history
@@ -22,11 +22,12 @@ class Dialog_Bots(object):
         Args:
 			minibatch = [(image, caption, solution)]
 			batch_size = num items in a batch
-            rounds_dialog (int): Number of times this must repeat
+            num_dialog_rounds (int): Number of times this must repeat
         Returns:
             answer: The predictions of the Q bot at the end of (every) dialog
         """
 		#First encode the caption and image in both bots
+		batch_size = len(minibatch)
 		images = [tuple(image) for image, _, _ in minibatch]
 		captions = [caption for _, caption, _ in minibatch]
 		q_bot_states = self.Qbot.encode_captions(captions)
@@ -36,7 +37,7 @@ class Dialog_Bots(object):
 		a_bot_recent_facts = [(-1, -1)] * batch_size # Sentinels for A Bot Fact 0
 		q_bot_facts = []
 		predictions = []
-		for _ in xrange(rounds_dialog):
+		for _ in xrange(num_dialog_rounds):
 			questions = self.Qbot.get_questions(q_bot_states) # QBot generates questions (Q_t)
 			for i, q in enumerate(questions): # Append to trajectory
 				q_bot_trajectories[i].append((q_bot_states[i], q))
@@ -147,7 +148,7 @@ class Dialog_Bots(object):
 				labels.append(label)
 
 			labels = [label for _, _, label in minibatch]
-			predictions, q_bot_trajectories, a_bot_trajectories = self.run_dialog(minibatch, batch_size, max_dialog_rounds)
+			predictions, q_bot_trajectories, a_bot_trajectories = self.run_dialog(minibatch, max_dialog_rounds)
 			update_q_bot = i % 2 == 0
 			if update_q_bot:
 				returns, rewards = self.get_returns(q_bot_trajectories, predictions, labels, self.config.Q.gamma)
