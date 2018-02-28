@@ -3,6 +3,8 @@ from collections import defaultdict
 from bots import SyntheticQBot
 from bots import SyntheticABot
 import os
+import matplotlib.pyplot as plt
+import scipy.signal as sig
 
 class Dialog_Bots(object):
 	def __init__(self, config):
@@ -13,7 +15,7 @@ class Dialog_Bots(object):
 		self.Abot = SyntheticABot(self.config.A)
 		self.eval_rewards = []
 
-	def run_dialog(self, images, captions, num_dialog_rounds=2):
+	def run_dialog(self, images, captions, num_dialog_rounds=2, test = False):
 		""" Runs dialog for specified number of rounds:
 				1) Q Bot asks question
 				2) A Bot answers question based on history
@@ -38,7 +40,10 @@ class Dialog_Bots(object):
 		q_bot_facts = []
 		predictions = []
 		for _ in xrange(num_dialog_rounds):
-			questions = self.Qbot.get_questions(q_bot_states) # QBot generates questions (Q_t)
+			if test is False:
+				questions = self.Qbot.get_questions(q_bot_states, self.config.Q.epsilon) # QBot generates questions (Q_t)
+			else:
+				questions = self.Qbot.get_questions(q_bot_states)
 			for i, q in enumerate(questions): # Append to trajectory
 				q_bot_trajectories[i].append((q_bot_states[i], q))
 
@@ -49,7 +54,10 @@ class Dialog_Bots(object):
 				a_bot_recent_facts,
 				a_bot_states
 			)
-			answers = self.Abot.decode_answers(a_bot_states) # ABot generates answers (A_t)
+			if test is False:
+				answers = self.Abot.get_answers(a_bot_states, self.config.A.epsilon) # ABot generates answers (A_t)
+			else:
+				answers = self.Abot.get_answers(a_bot_states)
 			a_bot_recent_facts = self.Abot.encode_facts(question_encodings, answers) # ABot generates facts (F_t)
 			for i, a in enumerate(answers): # Append to trajectory
 				a_bot_trajectories[i].append((a_bot_states[i], a))
@@ -57,15 +65,34 @@ class Dialog_Bots(object):
 			q_bot_facts = self.Qbot.encode_facts(questions, answers) # QBot encodes facts (F_t)
 			q_bot_states = self.Qbot.encode_state_histories(q_bot_states, q_bot_facts) # QBot encode states
 			if self.config.guess_every_round:
-				predictions.append(self.Qbot.get_image_predictions(q_bot_states))
-
+				if test is False:
+					predictions.append(self.Qbot.get_image_predictions(q_bot_states, self.config.Q.epsilon))
+				else:
+					predictions.append(self.Qbot.get_image_predictions(q_bot_states))
 		if not self.config.guess_every_round:
-			predictions = self.Qbot.get_image_predictions(q_bot_states)
+			if test is False:
+				predictions = self.Qbot.get_image_predictions(q_bot_states, self.config.Q.epsilon)
+			else:
+				predictions = self.Qbot.get_image_predictions(q_bot_states)
 
 		for i, q_bot_trajectory in enumerate(q_bot_trajectories):
 			q_bot_trajectory.append((q_bot_states[i], -1))
 
 		return predictions, q_bot_trajectories, a_bot_trajectories
+
+	def update_epsilon(self, iteration_num):
+		if iteration_num > self.config.Q.iterations:
+			self.config.Q.epsilon = self.config.Q.epsilon_end
+			
+		else:
+			self.config.Q.epsilon = self.config.Q.epsilon_start - (iteration_num *(self.config.Q.epsilon_start-
+															self.config.Q.epsilon_end)/self.config.Q.iterations)
+		
+		if iteration_num >self.config.A.iterations:
+			self.config.A.epsilon = self.config.A.epsilon_end
+		else:
+			self.config.A.epsilon = self.config.A.epsilon_start - (iteration_num *(self.config.A.epsilon_start-
+															self.config.A.epsilon_end)/self.config.A.iterations)
 
 	def get_minibatches(self, batch_size=20):
 		data = np.loadtxt(os.path.join(self.config.DATA_DIR, self.config.DATA_FILE), skiprows=1, delimiter=',')
@@ -92,7 +119,7 @@ class Dialog_Bots(object):
 			path_returns = [0] * len(trajectories[i])
 			# print "predictions[i], labels[i]", predictions[i], labels[i]
 			if predictions[i] == labels[i]:
-				print 'CORRECT PREDICTION MADE!'
+				# print 'CORRECT PREDICTION MADE!'
 				final_reward = 1.0
 			else:
 				final_reward = -1.0
@@ -147,14 +174,17 @@ class Dialog_Bots(object):
 				# 	print bot.Q_regression[final_state]
 				# print "final Q value", bot.Q_regression[final_state][final_action]
 
-		average_rewards_across_training = []
+		self.average_rewards_across_training = []
 		q_bot_state_action_counts = defaultdict(lambda: np.zeros(self.config.Q.num_actions))
 		q_bot_final_state_action_counts = defaultdict(lambda: np.zeros(self.config.Q.num_classes))
 		a_bot_state_action_counts = defaultdict(lambda: np.zeros(self.config.A.num_actions))
 		minibatch_generator = self.get_minibatches(batch_size)
+		test_minibatch_generator = self.get_minibatches(self.config.test_batch)
+		self.eval_rewards = []
 		for i in xrange(num_iterations):
 			images, captions, labels = minibatch_generator.next()
 			predictions, q_bot_trajectories, a_bot_trajectories = self.run_dialog(images, captions, max_dialog_rounds)
+			self.update_epsilon(i+1)
 			update_q_bot = i % 2 == 0
 			if update_q_bot:
 				returns, rewards = self.get_returns(q_bot_trajectories, predictions, labels, self.config.Q.gamma)
@@ -168,17 +198,50 @@ class Dialog_Bots(object):
 				apply_updates(self.Abot, a_bot_trajectories, returns, a_bot_state_action_counts)
 			# TODO: evaluate on: simulate new dialogs with epsilon = 1, so no exploration
 			avg_reward = np.mean(rewards)
-			average_rewards_across_training.append(avg_reward)
+			self.average_rewards_across_training.append(avg_reward)
 			sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
-			print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
+			if self.config.verbose:
+				print "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
+			#Evaluate with evaluation epsilon over a batch and store average rewards
+			if i%self.config.eval_every == 0:
+				if self.config.verbose:
+					print "Evaluating..."
+				images, captions, labels = test_minibatch_generator.next()
+				predictions, q_bot_trajectory, a_bot_trajectory = self.run_dialog(images, captions, max_dialog_rounds, test= True)
+				_, rewards = self.get_returns(q_bot_trajectory, predictions, labels, self.config.Q.gamma)
+				avg_eval_reward = np.mean(rewards)
+				self.eval_rewards.append(avg_eval_reward)
+				sigma_eval_reward = np.sqrt(np.var(rewards) / len(rewards))
+				if self.config.verbose:
+					print "Evaluation reward: {:04.2f} +/- {:04.2f}".format(avg_eval_reward, sigma_eval_reward)
+
+
+
 		# print self.Qbot.Q_regression
 
-		def show_dialog(self, image, caption, answer, batch_size=1, num_dialog_rounds=2):
-			batch = (image,caption,-1)
-			output, q_bot_trajectory, a_bot_trajectory = self.run_dialog(minibatch)
-			print "FINAL PREDICTION = " + string(output)
-			i=1
-			while i<4:
-				print "Qbot question:" + string(q_bot_trajectory[i])+"\n"
-				print "Abot answer:" + string(a_bot_trajectory[i]) + "\n"
-				i+=2
+	def show_dialog(self, image, caption, answer, batch_size=1, num_dialog_rounds=2):
+		batch = (image,caption,-1)
+		output, q_bot_trajectory, a_bot_trajectory = self.run_dialog(minibatch)
+		print "FINAL PREDICTION = " + string(output)
+		i=1
+		while i<4:
+			print "Qbot question:" + string(q_bot_trajectory[i])+"\n"
+			print "Abot answer:" + string(a_bot_trajectory[i]) + "\n"
+			i+=2
+	def generate_graphs(self):
+		#Smoothing of data
+		self.average_rewards_across_training = sig.savgol_filter(self.average_rewards_across_training, self.config.win_length, self.config.polyorder)
+		self.eval_rewards = sig.savgol_filter(self.eval_rewards, self.config.win_length, self.config.polyorder)
+		#Plotting
+		plt.figure(1)
+		plt.plot(self.average_rewards_across_training, 'k',label = "Training rewards")
+		plt.xlabel("Iteration Number")
+		plt.ylabel("Rewards")
+		# plt.legend(loc = 'best')
+		plt.savefig(os.path.join(self.config.output_dir,'training_rewards.png'), bbox_inches = 'tight')
+		plt.figure(2)
+		plt.plot(self.eval_rewards, 'r', label = "Evaluations Rewards")
+		plt.xlabel("Evaluation episode Number")
+		plt.ylabel("Rewards")
+		# plt.legend(loc = 'best')
+		plt.savefig(os.path.join(self.config.output_dir,'evaluation_rewards.png'), bbox_inches = 'tight')

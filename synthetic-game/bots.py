@@ -84,7 +84,7 @@ class SyntheticQBot(QBot):
         q_values = [self.Q[state] for state in states]
         return q_values
 
-    def get_questions(self, states):
+    def get_questions(self, states, epsilon = None):
         """Returns questions according to some exploration policy given encoded states
 
         Args:
@@ -92,16 +92,18 @@ class SyntheticQBot(QBot):
         Returns:
             questions: questions that Q Bot will ask [Batch Size, 1]
         """
+        if epsilon is None:
+            epsilon = self.config.epsilon_test
         optimal_questions = self.decode_questions(states)
-        def get_question(optimal_question):
-            if np.random.rand() < self.config.epsilon:
+        def get_question(optimal_question, epsilon):
+            if np.random.rand() > epsilon:
                 return optimal_question
             else:
                 return np.random.choice(self.config.num_actions)
-        questions = [get_question(optimal_question) for optimal_question in optimal_questions]
+        questions = [get_question(optimal_question, epsilon) for optimal_question in optimal_questions]
         return questions
 
-    def get_image_predictions(self, states):
+    def get_image_predictions(self, states, epsilon = None):
         """Returns questions according to some exploration policy given encoded states
 
         Args:
@@ -110,12 +112,14 @@ class SyntheticQBot(QBot):
             questions: questions that Q Bot will ask [Batch Size, 1]
         """
         optimal_image_predictions = self.generate_image_predictions(states)
-        def get_image_prediction(optimal_image_prediction):
-            if np.random.rand() < self.config.epsilon:
+        if epsilon is None:
+            epsilon = self.config.epsilon_test
+        def get_image_prediction(optimal_image_prediction, epsilon):
+            if np.random.rand() > self.config.epsilon:
                 return optimal_image_prediction
             else:
                 return np.random.choice(self.config.num_classes)
-        image_predictions = [get_image_prediction(optimal_image_prediction)
+        image_predictions = [get_image_prediction(optimal_image_prediction, epsilon)
                                 for optimal_image_prediction in optimal_image_predictions]
         return image_predictions
 
@@ -194,7 +198,7 @@ class SyntheticABot(ABot):
         q_values = [self.Q[state] for state in states]
         return q_values
 
-    def get_answers(self, states):
+    def get_answers(self, states, epsilon = None):
         """Returns answers according to some exploration policy given encoded states
 
         Args:
@@ -202,13 +206,15 @@ class SyntheticABot(ABot):
         Returns:
             answers: answers that A Bot will provide [Batch Size, 1]
         """
+        if epsilon is None:
+            epsilon = self.config.epsilon_test
         optimal_answers = self.decode_answers(states)
-        def get_answer(optimal_answer):
-            if np.random.rand() < self.config.epsilon:
+        def get_answer(optimal_answer, epsilon):
+            if np.random.rand() > epsilon:
                 return optimal_answer
             else:
                 return np.random.choice(self.config.num_actions)
-        answers = [get_answer(optimal_answer) for optimal_answer in optimal_answers]
+        answers = [get_answer(optimal_answer, epsilon) for optimal_answer in optimal_answers]
         return answers
 
 
