@@ -10,7 +10,7 @@ class config():
         
         epsilon_test = 0
         epsilon_start = 1
-        epsilon_end = 0.1
+        epsilon_end = 0.3
         epsilon = epsilon_start
         #Number of iterations for decay
         iterations = 10000
@@ -25,7 +25,7 @@ class config():
         
         epsilon_test = 0
         epsilon_start = 1
-        epsilon_end = 0.1
+        epsilon_end = 0.3
         epsilon = epsilon_start
         #Number of iterations for decay
         iterations = 10000
@@ -40,12 +40,14 @@ class config():
     # Number of rounds of dialog before cutoff
     max_dialog_rounds = 2
     # Batch Size
-    batch_size = 200
-    num_iterations = 15000
+    batch_size = 100
+    num_iterations = 50000
     verbose = False
 ## Evaluation parameters
     test_batch = 50
     eval_every = 50
+    show_dialog = False
+    dialogs_to_show = 3
 ## Smoothing parameters for plot
     win_length = 21
     polyorder = 3
