@@ -41,6 +41,7 @@ class config():
     batch_size = 100
     num_iterations = 50000
     verbose = False
+
 ## Evaluation parameters
     test_batch = 50
     # test_batch = 1
@@ -54,4 +55,3 @@ class config():
     output_dir = "./results"
     DATA_DIR = "../synthetic_data/"
     DATA_FILE = "synthetic_data.csv"
-    # DATA_FILE = "small.csv"
