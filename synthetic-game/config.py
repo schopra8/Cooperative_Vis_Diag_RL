@@ -13,10 +13,10 @@ class config():
         epsilon_end = 0.1
         epsilon = epsilon_start
         #Number of iterations for decay
-        iterations = 2000
-
+        iterations = 10000
+        q_bot_lookup = {0: 'X', 1:'Y', 2:'Z'}
     # discount factor
-        gamma = 0.99
+        gamma = 1
 ## Parameters for Abot
     class A():
     #Vocabulary size for A bot
@@ -28,21 +28,23 @@ class config():
         epsilon_end = 0.1
         epsilon = epsilon_start
         #Number of iterations for decay
-        iterations = 50
+        iterations = 10000
     # discount factor
-        gamma = 0.99
+        gamma = 1
 
 ##Training parameters
+    # caption lookup for reference
+    caption_lookup = {0: [0,1], 1: [0,2], 2:[1,0], 3:[1,2], 4: [2,0], 5:[2,1]}
     # Need Q bot to guess image representation at every round?
     guess_every_round = False
     # Number of rounds of dialog before cutoff
     max_dialog_rounds = 2
     # Batch Size
-    batch_size = 150
-    num_iterations = 20000
+    batch_size = 200
+    num_iterations = 15000
     verbose = False
 ## Evaluation parameters
-    test_batch = 10
+    test_batch = 50
     eval_every = 50
 ## Smoothing parameters for plot
     win_length = 21

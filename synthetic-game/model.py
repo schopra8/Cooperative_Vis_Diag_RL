@@ -105,8 +105,9 @@ class Dialog_Bots(object):
 			images = batch_data[:,:3]
 			captions = batch_data [:,3]
 			labels = batch_data[:,4]
-			yield images, captions, labels
 			i += batch_size
+			yield images, captions, labels
+			
 
 	def get_returns(self, trajectories, predictions, labels, gamma):
 		""" Gets returns for a list of trajectories.
@@ -220,15 +221,18 @@ class Dialog_Bots(object):
 
 		# print self.Qbot.Q_regression
 
-	def show_dialog(self, image, caption, answer, batch_size=1, num_dialog_rounds=2):
-		batch = (image,caption,-1)
-		output, q_bot_trajectory, a_bot_trajectory = self.run_dialog(minibatch)
-		print "FINAL PREDICTION = " + string(output)
-		i=1
-		while i<4:
-			print "Qbot question:" + string(q_bot_trajectory[i])+"\n"
-			print "Abot answer:" + string(a_bot_trajectory[i]) + "\n"
-			i+=2
+	def show_dialog(self, image, caption, answer):
+		output, q_bot_trajectory, a_bot_trajectory = self.run_dialog(image,caption, test=True)
+		for i in xrange(image.shape[0]):
+			print "IMAGE is:" + str(image[i])
+			print "CAPTION is:" +str(self.config.caption_lookup[caption[i]])
+			print "GROUND TRUTH = " + str([int(answer[i]/12),answer[i]%12])
+			print "FINAL PREDICTION = " + str([int(output[i]/12), output[i]%12])
+			j=0
+			while j<2:
+				print "Qbot question:" + str(self.config.Q.q_bot_lookup[q_bot_trajectory[i][j][1]])+"\n"
+				print "Abot answer:" + str(a_bot_trajectory[i][j][1]) + "\n"
+				j+=1
 	def generate_graphs(self):
 		#Smoothing of data
 		self.average_rewards_across_training = sig.savgol_filter(self.average_rewards_across_training, self.config.win_length, self.config.polyorder)
