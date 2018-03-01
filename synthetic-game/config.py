@@ -43,7 +43,7 @@ class config():
     max_dialog_rounds = 2
     # Batch Size
     batch_size = 50
-    num_iterations = 30000
+    num_iterations = 100000
     verbose = True
 ## Evaluation parameters
     test_batch = 50
@@ -56,4 +56,3 @@ class config():
     output_dir = "./results"
     DATA_DIR = "../synthetic_data/"
     DATA_FILE = "synthetic_data.csv"
-    # DATA_FILE = "small.csv"
