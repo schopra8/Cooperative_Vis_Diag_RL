@@ -15,7 +15,7 @@ class Dialog_Bots(object):
 		self.Abot = SyntheticABot(self.config.A)
 		self.eval_rewards = []
 
-	def run_dialog(self, images, captions, num_dialog_rounds=2, test = False):
+	def run_dialog(self, images, captions, num_dialog_rounds=2, test=False):
 		""" Runs dialog for specified number of rounds:
 				1) Q Bot asks question
 				2) A Bot answers question based on history
@@ -40,10 +40,10 @@ class Dialog_Bots(object):
 		q_bot_facts = []
 		predictions = []
 		for _ in xrange(num_dialog_rounds):
-			if test is False:
-				questions = self.Qbot.get_questions(q_bot_states, self.config.Q.epsilon) # QBot generates questions (Q_t)
-			else:
+			if test:
 				questions = self.Qbot.get_questions(q_bot_states)
+			else:
+				questions = self.Qbot.get_questions(q_bot_states, self.config.Q.epsilon) # QBot generates questions (Q_t)
 			for i, q in enumerate(questions): # Append to trajectory
 				q_bot_trajectories[i].append((q_bot_states[i], q))
 
@@ -96,16 +96,18 @@ class Dialog_Bots(object):
 
 	def get_minibatches(self, batch_size=20):
 		data = np.loadtxt(os.path.join(self.config.DATA_DIR, self.config.DATA_FILE), skiprows=1, delimiter=',')
+		# data = np.expand_dims(data, axis=0)
 		np.random.shuffle(data)
-		caption_lookup = {0: [0,1], 1: [0,2], 2:[1,0], 3:[1,2], 4: [2,0], 5:[2,1]}
 		i = 0
 		size = data.shape[0]
 		while True:
 			batch_data = data[i%size:(i%size+batch_size),:]
+			# print batch_data
 			images = batch_data[:,:3]
 			captions = batch_data [:,3]
 			labels = batch_data[:,4]
 			i += batch_size
+			# TODO: fix why batch comes out empty sometimes
 			yield images, captions, labels
 			
 
@@ -206,19 +208,19 @@ class Dialog_Bots(object):
 			
 			#Evaluate with evaluation epsilon over a batch and store average rewards
 			if i%self.config.eval_every == 0:
-				if self.config.verbose:
-					print "Evaluating..."
-				images, captions, labels = test_minibatch_generator.next()
-				predictions, q_bot_trajectory, a_bot_trajectory = self.run_dialog(images, captions, max_dialog_rounds, test= True)
-				_, rewards = self.get_returns(q_bot_trajectory, predictions, labels, self.config.Q.gamma)
-				avg_eval_reward = np.mean(rewards)
-				self.eval_rewards.append(avg_eval_reward)
-				sigma_eval_reward = np.sqrt(np.var(rewards) / len(rewards))
-				if self.config.verbose:
-					print "Evaluation reward: {:04.2f} +/- {:04.2f}".format(avg_eval_reward, sigma_eval_reward)
+				self.evaluate(test_minibatch_generator, max_dialog_rounds)
 
-
-
+	def evaluate(self, minibatch_generator, max_dialog_rounds):
+		if self.config.verbose:
+			print "Evaluating..."
+		images, captions, labels = minibatch_generator.next()
+		predictions, q_bot_trajectory, a_bot_trajectory = self.run_dialog(images, captions, max_dialog_rounds, test= True)
+		_, rewards = self.get_returns(q_bot_trajectory, predictions, labels, self.config.Q.gamma)
+		avg_eval_reward = np.mean(rewards)
+		self.eval_rewards.append(avg_eval_reward)
+		sigma_eval_reward = np.sqrt(np.var(rewards) / len(rewards))
+		if self.config.verbose:
+			print "Evaluation reward: {:04.2f} +/- {:04.2f}".format(avg_eval_reward, sigma_eval_reward)
 		# print self.Qbot.Q_regression
 
 	def show_dialog(self, image, caption, answer):
