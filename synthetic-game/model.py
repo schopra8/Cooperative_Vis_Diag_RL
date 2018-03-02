@@ -143,9 +143,9 @@ class Dialog_Bots(object):
 			""" Get Q-Learning updates that should be applied to a bot.
 				We compute the running average of each state, action -> reward.
 			"""
-			flag = False
 			for dialog_index, trajectory in enumerate(trajectories):  # for each dialog
 				returns = all_returns[dialog_index]
+				flag = False
 				for timestep, (state, action) in enumerate(trajectory):
 					if action == -1: flag=True
 					state_action_counts[state][action] += 1
