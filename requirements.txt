@@ -1,1 +1,4 @@
+ijson
 numpy
+pandas
+Cython
