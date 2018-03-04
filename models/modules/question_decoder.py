@@ -42,7 +42,7 @@ class question_decoder():
 			#stacked cell
 			cell = tf.contrib.rnn.MultiRNNCell(cells)
 			#decoder instance
-			decoder = tf.contrib.seq2seq.BasicDecoder(cell,helper,states)
+			decoder = tf.contrib.seq2seq.BasicDecoder(cell helper, states)
 			#final sequence of outputs
 			#final_outputs = (batch_size, max_sequence_length, hidden_size)
 			#final_state = (batch_size, hidden_size)
