@@ -55,7 +55,7 @@ class question_decoder():
 		final_sequence_lengths = (batch_size): The actual length of the questions
 		"""
 
-		with tf.varible_scope(scope):
+		with tf.varible_scope(self.scope):
 			#start_tokens to 
 			# start_tokens = tf.tile(self.start_token, [tf.shape(states)[0],1])
 			if flag:
