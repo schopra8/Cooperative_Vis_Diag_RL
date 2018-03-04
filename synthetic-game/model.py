@@ -145,14 +145,17 @@ class Dialog_Bots(object):
 			"""
 			for dialog_index, trajectory in enumerate(trajectories):  # for each dialog
 				returns = all_returns[dialog_index]
+				flag = False
 				for timestep, (state, action) in enumerate(trajectory):
-					if action == -1: continue
+					if action == -1: flag=True
 					state_action_counts[state][action] += 1
 					state_action_count = state_action_counts[state][action]
 					# print "state, action", state, action
 					# print "Q value", bot.Q[state][action]
 					new_q_val = calculate_running_average(state_action_count, bot.Q[state][action], returns[timestep])
 					bot.Q[state][action] = new_q_val
+					if flag:
+						break
 					# print "Q value", bot.Q[state][action]
 
 		def apply_regression_updates(bot, trajectories, predictions, all_returns, state_action_counts):

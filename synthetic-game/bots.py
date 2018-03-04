@@ -178,7 +178,7 @@ class SyntheticABot(ABot):
         Returns:
             state: encoded states that combine question_encodings and facts
         """
-        new_states = zip(images, question_encodings, recent_facts)
+        new_states = zip(question_encodings, recent_facts)
         histories = [state + new_states[i] for i, state in enumerate(prev_states)]
         return histories
 

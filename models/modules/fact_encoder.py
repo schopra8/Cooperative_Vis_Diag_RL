@@ -1,0 +1,1 @@
+class fact_encoder():
