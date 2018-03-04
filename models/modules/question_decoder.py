@@ -8,7 +8,7 @@ class question_decoder():
 		Previous state: (batch_size, hidden_dimension)
 		Question: (batch_size, question_length, indices)
 	"""
-	def __init__(self, hidden_dimension, start_token, max_question_length):
+	def __init__(self, hidden_dimension, start_token, end_token, max_question_length, scope):
 		"""
 		Initialization function
 		====================
@@ -20,9 +20,24 @@ class question_decoder():
 		"""
 		self.hidden_dimension = hidden_dimension
 		self.start_token = start_token
+		self.end_token = end_token
 		self.max_question_length = max_question_length
+		self.scope = scope
+		self.add_cells()
 
-	def build_graph(self, states, questions, question_lengths, scope):
+	def add_cells(self):
+		"""
+		Builds the graph to create the RNN's which do the dirty work
+		TODO: Differentiate between supervised pre-training and RL-training:
+		===================================
+		"""
+		with tf.varible_scope(self.scope):
+
+			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
+			#stacked cell
+			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
+
+	def generate_question(self, states, questions, question_lengths, flag=True, embedding = None):
 		"""
 		Builds the graph to take in the state, and generate a question
 		TODO: Differentiate between supervised pre-training and RL-training:
@@ -31,16 +46,23 @@ class question_decoder():
 		states: float of shape (batch_size, hidden_dimension) - The state/history encoding for this round of dialog
 		questions: float of shape (batch_size, max_question_length, embedding_size) || Assumed that questions have been padded to max_question_size
 		question_lengths: int of shape(batch_size) - How long is the actual question?
-		scope: Scope for all variables created in this call to build_graph()
+		flag: bool True: supervised pretraining|| False: RL training
+		embedding: embedding matrix of size (embedding_size, vocabulary_size)
+		===================================
+		OUTPUTS:
+		final_outputs: float of shape (batch_size, max_sequence_length, hidden_size): The sequence of output vectors for every timestep
+		final_state = (batch_size, hidden_size): The final hidden state for every question in the batch
+		final_sequence_lengths = (batch_size): The actual length of the questions
 		"""
-		
-		with tf.varible_scope(scope):
+
+		with tf.varible_scope(self.scope):
 			#start_tokens to 
 			# start_tokens = tf.tile(self.start_token, [tf.shape(states)[0],1])
-			helper = tf.contrib.seq2seq.TrainingHelper(questions, question_lengths,scope)
-			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
-			#stacked cell
-			cell = tf.contrib.rnn.MultiRNNCell(cells)
+			if flag:
+				helper = tf.contrib.seq2seq.TrainingHelper(questions,question_lengths,scope)
+			else:
+				start_tokens = tf.tile(self.start_token, [tf.shape(states)[0]])
+				helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding = embedding, start_tokens = start_tokens, end_token = self.end_token)
 			#decoder instance
 			decoder = tf.contrib.seq2seq.BasicDecoder(cell helper, states)
 			#final sequence of outputs
@@ -49,5 +71,5 @@ class question_decoder():
 			#final_sequence_lengths = (batch_size)
 			final_outputs, final_state, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
 														impute_finished=True, maximum_iterations=self.max_question_length)
-			
+		
 			return final_outputs, final_state, final_sequence_lengths
