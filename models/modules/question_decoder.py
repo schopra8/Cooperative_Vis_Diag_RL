@@ -37,7 +37,7 @@ class question_decoder():
 		with tf.varible_scope(scope):
 			#start_tokens to 
 			# start_tokens = tf.tile(self.start_token, [tf.shape(states)[0],1])
-			helper = tf.contrib.seq2seq.TrainingHelper(questions,question_lengths,scope)
+			helper = tf.contrib.seq2seq.TrainingHelper(questions, question_lengths,scope)
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
 			#stacked cell
 			cell = tf.contrib.rnn.MultiRNNCell(cells)
