@@ -1,4 +1,6 @@
 *.pyc
 .idea
+.env
 .DS_Store
+data/
 log.txt
