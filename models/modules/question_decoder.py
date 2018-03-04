@@ -59,7 +59,7 @@ class question_decoder():
 			#start_tokens to 
 			# start_tokens = tf.tile(self.start_token, [tf.shape(states)[0],1])
 			if flag:
-			helper = tf.contrib.seq2seq.TrainingHelper(questions,question_lengths,scope)
+				helper = tf.contrib.seq2seq.TrainingHelper(questions,question_lengths,scope)
 			else:
 				start_tokens = tf.tile(self.start_token, [tf.shape(states)[0]])
 				helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding = embedding, start_tokens = start_tokens, end_token = self.end_token)
