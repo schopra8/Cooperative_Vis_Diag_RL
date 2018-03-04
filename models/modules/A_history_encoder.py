@@ -1,1 +1,3 @@
-class A_history_encoder():
+import tensorflow as tf
+
+class AHistoryEncoder(object):

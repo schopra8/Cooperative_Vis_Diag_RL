@@ -1,1 +1,1 @@
-class answer_decoder():
+class AnswerDecoder():

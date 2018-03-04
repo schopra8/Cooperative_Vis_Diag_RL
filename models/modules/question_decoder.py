@@ -54,15 +54,19 @@ class question_decoder():
 		final_state = (batch_size, hidden_size): The final hidden state for every question in the batch
 		final_sequence_lengths = (batch_size): The actual length of the questions
 		"""
-		if flag:
-			helper = tf.contrib.seq2seq.TrainingHelper(questions,question_lengths,scope)
-		else:
-			start_tokens = tf.tile(self.start_token, [tf.shape(states)[0]])
-			helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding = embedding, start_tokens = start_tokens, end_token = self.end_token)
-		#decoder instance
-		decoder = tf.contrib.seq2seq.BasicDecoder(self.cell,helper,states)
 
-		final_outputs, final_state, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
+		with tf.varible_scope(scope):
+			#start_tokens to 
+			# start_tokens = tf.tile(self.start_token, [tf.shape(states)[0],1])
+			if flag:
+			helper = tf.contrib.seq2seq.TrainingHelper(questions,question_lengths,scope)
+			else:
+				start_tokens = tf.tile(self.start_token, [tf.shape(states)[0]])
+				helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding = embedding, start_tokens = start_tokens, end_token = self.end_token)
+			#decoder instance
+			decoder = tf.contrib.seq2seq.BasicDecoder(self.cell,helper,states)
+
+			final_outputs, final_state, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
 														impute_finished=True, maximum_iterations=self.max_question_length)
 		
-		return final_outputs, final_state, final_sequence_lengths
+			return final_outputs, final_state, final_sequence_lengths
