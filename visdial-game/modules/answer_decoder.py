@@ -39,6 +39,7 @@ class AnswerDecoder(object):
 			# Stacked Cells: Inputs -> Basic RNN Cell -> Basic LSTM Cell -> Outputs
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
 			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
+			self.vocab_logits_layer = Dense(self.vocabulary_size, activation=None)
 
 	def generate_answer(self, states, true_answers, true_answer_lengths, supervised_training=True):
 		"""
@@ -64,7 +65,7 @@ class AnswerDecoder(object):
 				cell=self.cell,
 				helper=helper,
 				initial_states=states,
-				output_layer=tf.layers.Dense(self.vocabulary_size, activation=None)
+				output_layer=self.vocab_logits_layer,
 			)
 			# final_outputs = (batch_size, max_sequence_length, hidden_size)
 			# final_sequence_lengths = (batch_size)
