@@ -33,7 +33,7 @@ class QuestionDecoder(object):
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
 			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
 
-	def generate_question(self, states, true_questions, true_question_lengths, supervised_training=True, embedding=None):
+	def generate_question(self, states, true_questions=None, true_question_lengths=None, supervised_training=False, embedding=None):
 		"""
 		Builds the graph to take in the state, and generate a question
 		TODO: Differentiate between supervised pre-training and RL-training:

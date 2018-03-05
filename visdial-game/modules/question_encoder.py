@@ -22,7 +22,6 @@ class QuestionEncoder(object):
 	def add_cells(self):
 		"""
 		Builds the graph to take in the questions and ouput embeddings for each question.
-		TODO: Differentiate between supervised pre-training and RL-training:
 		===================================
 		"""
 		with tf.varible_scope(self.scope):

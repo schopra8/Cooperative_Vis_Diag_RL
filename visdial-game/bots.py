@@ -1,9 +1,40 @@
-import numpy as np
 import tensorflow as tf
+import os, sys
+from modules.a_history_encoder import AHistoryEncoder
+from modules.answer_decoder import AnswerDecoder
+from modules.fact_encoder import FactEncoder
+from modules.feature_regression import FeatureRegression
+from modules.q_history_encoder import QHistoryEncoder
+from modules.question_decoder import QuestionDecoder
+from modules.question_encoder import QuestionEncoder
 
-class ABot(object):
+sys.path.append('../')
+from models.qbot import QBot
+from models.abot import ABot
+
+class DeepABot(ABot):
     """Abstracts an A-Bot for answering questions about a photo
     """
+    def __init__(self, config):
+        with tf.variable_scope("a_bot") as scope:
+            self.config = config
+            self.fact_encoder = FactEncoder(self.config.hidden_dims, scope)
+            self.question_encoder = QuestionDecoder(
+                self.config.hidden_dims,
+                scope
+            )
+            self.answer_decoder = AnswerDecoder(
+                self.config.hidden_dims,
+                self.config.START_TOKEN,
+                self.config.END_TOKEN,
+                self.config.MAX_ANSWER_LENGTH,
+                scope
+            )
+            self.history_encoder = QHistoryEncoder(
+                self.config.hidden_dims,
+                scope
+            )        
+
     def encode_images_captions(self, captions, images):
         """Encodes the captions and the images into the states
 
@@ -88,29 +119,49 @@ class ABot(object):
         """
         raise NotImplementedError("Each A-Bot must re-implement this method.")
 
-class QBot(object):
+class DeepQBot(QBot):
     """Abstracts a Q-Bot for asking questions about a photo
     """
-    def encode_captions(self, captions):
+    def __init__(self, config):
+        with tf.variable_scope("q_bot") as scope:
+            self.config = config
+            self.fact_encoder = FactEncoder(self.config.hidden_dims, scope)
+            self.question_decoder = QuestionDecoder(
+                self.config.hidden_dims,
+                self.config.START_TOKEN,
+                self.config.END_TOKEN,
+                self.config.MAX_QUESTION_LENGTH,
+                scope
+            )
+            self.history_encoder = QHistoryEncoder(
+                self.config.hidden_dims,
+                scope
+            )
+
+    def encode_captions(self, captions, caption_lengths):
         """Encodes captions.
 
         Args:
-            captions: [Batch Size, Caption Encoding Dimensions]
+            captions: float of shape (batch size, max_caption_length, embedding_dims)
         Returns:
             captions: encoded captions  
         """
-        raise NotImplementedError("Each Q-Bot must re-implement this method.")
+        fact_captions = self.fact_encoder.generate_fact_from_captions(captions, caption_lengths)
+        state_captions = self.history_encoder.generate_next_state(fact_captions)
+        return state_captions
 
     def encode_facts(self, questions, answers):
         """Encodes questions and answers into a fact (Fact Encoder)
 
         Args:
-            questions: questions asked by the Q-Bot in the most recent round [Batch Size, 1]
-            answers: answers given by the A-Bot in response to the questions [Batch Size, 1]
+            questions: questions asked by the Q-Bot in the most recent round 
+                       float of shape (batch size, max_question_length, embedding_dims)
+            answers: answers given by the A-Bot in response to the questions 
+                       float of shape (batch size, max_answer_length, embedding_dims)
         Returns:
             facts: encoded facts that combine the question and answer
         """
-        raise NotImplementedError("Each Q-Bot must re-implement this method.")
+        return self.fact_encoder.generate_next_fact(questions, answers)
 
     def encode_state_histories(self, prev_states, recent_facts):
         """Encodes states as a combination of facts for a given round (State/History Encoder)
@@ -121,7 +172,7 @@ class QBot(object):
         Returns:
             state: encoded state that combines the current facts and previous facts [Batch Size, 1]
         """
-        raise NotImplementedError("Each Q-Bot must re-implement this method.")
+        return self.history_encoder.generate_next_state(recent_facts, prev_states)
 
     def decode_questions(self, states):
         """Decodes (generates) questions given the current states (Question Decoder)
@@ -140,16 +191,6 @@ class QBot(object):
             state: encoded states [Batch Size, 1]
         Returns:
             image_repr: representation of the predicted images [Batch Size, 1]
-        """
-        raise NotImplementedError("Each Q-Bot must re-implement this method.")
-
-    def get_q_values(self, states):
-        """Returns all Q-values for all actions given states
-
-        Args:
-            state: encoded states [Batch Size, 1]
-        Returns:
-            values: mapping of actions to expected return values [Batch Size, 1]
         """
         raise NotImplementedError("Each Q-Bot must re-implement this method.")
 
