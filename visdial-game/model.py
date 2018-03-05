@@ -1,0 +1,44 @@
+import tensorflow as tf
+import numpy as np
+
+class model():
+	def __init__(self, config):
+		""" Sets up the configuration parameters, creates Q Bot + A Bot.
+		"""
+		self.config= config
+
+	def run_dialog(self, images, captions, num_dialog_rounds=2, test=False):
+		pass
+
+	def update_epsilon(self, iteration_num):
+		pass
+
+	def get_minibatches(self, batch_size=20):
+		pass
+			
+
+	def get_returns(self, trajectories, predictions, labels, gamma):
+		""" Gets returns for a list of trajectories.
+			+1 Reward if guess == answer
+			-1 Otherwise
+		"""
+		pass
+
+	def train(self, batch_size=20, num_iterations=500, max_dialog_rounds=2):
+	
+		pass
+
+	def evaluate(self, minibatch_generator, max_dialog_rounds):
+
+
+	def show_dialog(self, image, caption, answer):
+		pass
+	def concatenate_q_a(self, question, question_lengths, answers, asnwer_lengths):
+		
+		stripped_question_answer_pairs = [tf.concat([question[i,0:question_lengths[i],:], answer[i,0:answer_lengths[i],:]], axis = 1)for i in xrange(self.config.batch_size)]
+		max_size = self.config.max_question_size + self.config.max_answer_size
+		padded_question_answer_pairs = [tf.pad(stripped_question_answer_pairs[i], [0, max_size - tf.shape(stripped_question_answer_pairs[i])[0]]) for i in xrange(self.config.batch_size)]
+		question_answer_pairs = tf.stack(padded_question_answer_pairs, axis = 0)
+
+
+	
