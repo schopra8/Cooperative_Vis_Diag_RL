@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.layers.core import Dense
 
 class QuestionDecoder(object):
 	"""
@@ -38,6 +39,7 @@ class QuestionDecoder(object):
 		with tf.variable_scope(self.scope):
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
 			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
+			self.vocab_logits_layer = Dense(self.vocabulary_size, activation=None)
 
 	def generate_question(self, states, true_questions=None, true_question_lengths=None, supervised_training=False):
 		"""
@@ -63,7 +65,7 @@ class QuestionDecoder(object):
 				cell=self.cell,
 				helper=helper,
 				initial_states=states,
-				output_layer=tf.layers.Dense(self.vocabulary_size, activation=None)
+				output_layer=self.vocab_logits_layer,
 			)
 			#final sequence of outputs
 			#final_outputs = (batch_size, max_sequence_length, hidden_size)
