@@ -65,16 +65,6 @@ class ABot(object):
         """
         raise NotImplementedError("Each Q-Bot must re-implement this method.")
 
-    def get_q_values(self, states):
-        """Returns all Q-values for all actions given states
-
-        Args:
-            state: encoded states [Batch Size, 1]
-        Returns:
-            values: mapping of actions to expected return values [Batch Size, 1]
-        """
-        raise NotImplementedError("Each A-Bot must re-implement this method.")
-
     def get_answers(self, states):
         """Returns answers according to some exploration policy given encoded states
 

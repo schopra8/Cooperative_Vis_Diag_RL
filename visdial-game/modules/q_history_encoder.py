@@ -29,13 +29,13 @@ class QHistoryEncoder(object):
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
 			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
 
-	def generate_next_state(self, prev_states, current_facts):
+	def generate_next_state(self, current_facts, prev_states=None):
 		"""
 		Builds the graph to take in the previous state, and current fact and generates the new state
 		===================================
 		INPUTS:
-		prev_states: float of shape (batch_size, hidden_dimension) - The state/history encoding for this round of dialog
 		current_facts: float of shape (batch_size, hidden_dimension) - The encoding of the (q,a) pair for this round of dialog
+		prev_states: float of shape (batch_size, hidden_dimension) - The state/history encoding for this round of dialog
 		===================================
 		OUTPUTS:
 			outputs: float of shape (batch_size, max_fact_length, hidden_dimension)

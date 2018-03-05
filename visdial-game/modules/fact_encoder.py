@@ -24,6 +24,25 @@ class FactEncoder(object):
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
 			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
 
+	def generate_fact_from_captions(self, captions, caption_lengths):
+		"""
+		Builds the graph to take in the questions, answers and generates the new fact
+		===================================
+		INPUTS:
+		captions: float of shape (batch_size, caption_size, embedding_dimension) - Captions
+		===================================
+		OUTPUTS:
+			next_facts: float of shape (batch_size, hidden_dimension) - The new fact encoding generated using the current answers and question
+		"""
+		with tf.varible_scope(self.scope):
+			_, next_facts = tf.nn.dynamic_rnn(
+				self.cell,
+				inputs,
+				sequence_length=, # TODO: Add this maybe?
+				dtype=tf.float32,
+			)
+			return next_facts
+
 	def generate_next_fact(self, questions, answers):
 		"""
 		Builds the graph to take in the questions, answers and generates the new fact
