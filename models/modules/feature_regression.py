@@ -1,4 +1,6 @@
-class feature_regression():
+import tensorflow as tf
+
+class FeatureRegressor(object):
 	def __init__(self, image_dimension, scope):
 		"""
 		Initialization function
@@ -9,8 +11,6 @@ class feature_regression():
 		"""
 		self.image_dimension = image_dimension
 		self.scope = scope
-		self.add_cells()
-
 
 	def generate_image_prediction(self, state):
 		"""
@@ -23,8 +23,6 @@ class feature_regression():
 		image_prediction: float of shape (batch_size, image_prediction) - The new image prediction based on dialog so far
 		"""
 		##Assumed that fully connected layer has no activation at output!
-
 		with tf.varible_scope(self.scope):
-			
 			image_prediction = tf.contrib.layers.fully_connected(state, self.image_dimension, activation_fn = None)
 			return image_prediction

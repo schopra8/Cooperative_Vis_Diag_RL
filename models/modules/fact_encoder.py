@@ -1,5 +1,6 @@
-class fact_encoder():
+import tensorflow as tf
 
+class FactEncoder(object):
 	def __init__(self, hidden_dimension, scope):
 		"""
 		Initialization function
@@ -16,32 +17,30 @@ class fact_encoder():
 	def add_cells(self):
 		"""
 		Creates the RNN's which do the dirty work
-		TODO: Differentiate between supervised pre-training and RL-training:
 		===================================
 		"""
 		with tf.varible_scope(self.scope):
-
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
-			#stacked cell
-
 			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
 
-	def generate_next_fact(self, question, answer):
+	def generate_next_fact(self, questions, answers):
 		"""
-		Builds the graph to take in the question, answer and generates the new fact
+		Builds the graph to take in the questions, answers and generates the new fact
 		===================================
 		INPUTS:
-		question: float of shape (batch_size, max_question_length, embedding_dimension) - The question from this round of dialog
-		answer: float of shape (batch_size, max_question_length, embedding_dimension) - The answer from this round of dialog
+		questions: float of shape (batch_size, max_question_length, embedding_dimension) - The questions from this round of dialog
+		answers: float of shape (batch_size, max_answer_length, embedding_dimension) - The answers from this round of dialog
 		===================================
 		OUTPUTS:
-			next_fact: float of shape (batch_size, hidden_dimension) - The new fact encoding generated using the current answer and question
+			next_facts: float of shape (batch_size, hidden_dimension) - The new fact encoding generated using the current answers and question
 		"""
-
 		with tf.varible_scope(self.scope):
-			#start_tokens to 
-			# start_tokens = tf.tile(self.start_token, [tf.shape(states)[0],1])
-			inputs = tf.concat([question, answer], 2)
-			_, next_state = self.cell(inputs, tf.zeros([tf.shape(question)[0], self.hidden_dimension], dtype = tf.float32))
-			
-			return next_fact
+			# TODO: Determine how to extract questions and answers (removing padding for questions and answers)
+			inputs = tf.concat([questions, answers], 1) # Concatenate along max_question_length/max_answer_length dimension
+			_, next_facts = tf.nn.dynamic_rnn(
+				self.cell,
+				inputs,
+				sequence_length=None, # TODO: Add this maybe?
+				dtype=tf.float32,
+			)
+			return next_facts

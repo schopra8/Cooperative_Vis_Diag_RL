@@ -1,10 +1,9 @@
 import tensorflow as tf
-import numpy as np
 
-class question_decoder():
+class QuestionDecoder(object):
 	"""
 		Takes in previous state, and returns the question for that time step
-		###Dimensions
+		### Dimensions
 		Previous state: (batch_size, hidden_dimension)
 		Question: (batch_size, question_length, indices)
 	"""
@@ -28,16 +27,13 @@ class question_decoder():
 	def add_cells(self):
 		"""
 		Builds the graph to create the RNN's which do the dirty work
-		TODO: Differentiate between supervised pre-training and RL-training:
 		===================================
 		"""
 		with tf.varible_scope(self.scope):
-
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
-			#stacked cell
 			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
 
-	def generate_question(self, states, true_questions, true_question_lengths, flag=True, embedding = None):
+	def generate_question(self, states, true_questions, true_question_lengths, supervised_training=True, embedding=None):
 		"""
 		Builds the graph to take in the state, and generate a question
 		TODO: Differentiate between supervised pre-training and RL-training:
@@ -46,7 +42,7 @@ class question_decoder():
 		states: float of shape (batch_size, hidden_dimension) - The state/history encoding for this round of dialog
 		true_questions: float of shape (batch_size, max_question_length, embedding_size) || Assumed that questions have been padded to max_question_size
 		true_question_lengths: int of shape(batch_size) - How long is the actual question?
-		flag: bool True: supervised pretraining|| False: RL training
+		supervised_training: bool True: supervised pretraining|| False: RL training
 		embedding: embedding matrix of size (embedding_size, vocabulary_size)
 		===================================
 		OUTPUTS:
@@ -55,14 +51,11 @@ class question_decoder():
 		final_sequence_lengths = (batch_size): The actual length of the questions
 		"""
 		with tf.varible_scope(self.scope):
-			#start_tokens to 
-			# start_tokens = tf.tile(self.start_token, [tf.shape(states)[0],1])
-			if flag:
+			if supervised_training:
 				helper = tf.contrib.seq2seq.TrainingHelper(true_questions, true_question_lengths, self.scope)
 			else:
 				start_tokens = tf.tile(self.start_token, [tf.shape(states)[0]])
-				helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding = embedding, start_tokens = start_tokens, end_token = self.end_token)
-			#decoder instance
+				helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=embedding, start_tokens=start_tokens, end_token=self.end_token)
 			decoder = tf.contrib.seq2seq.BasicDecoder(self.cell, helper, states)
 			#final sequence of outputs
 			#final_outputs = (batch_size, max_sequence_length, hidden_size)
@@ -70,5 +63,4 @@ class question_decoder():
 			#final_sequence_lengths = (batch_size)
 			final_outputs, final_state, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
 														impute_finished=True, maximum_iterations=self.max_question_length)
-		
 			return final_outputs, final_state, final_sequence_lengths
