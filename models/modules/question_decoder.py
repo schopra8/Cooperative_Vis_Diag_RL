@@ -1,10 +1,9 @@
 import tensorflow as tf
-import numpy as np
 
-class question_decoder():
+class QuestionDecoder(object):
 	"""
 		Takes in previous state, and returns the question for that time step
-		###Dimensions
+		### Dimensions
 		Previous state: (batch_size, hidden_dimension)
 		Question: (batch_size, question_length, indices)
 	"""

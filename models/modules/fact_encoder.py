@@ -1,5 +1,6 @@
-class fact_encoder():
+import tensorflow as tf
 
+class FactEncoder(object):
 	def __init__(self, hidden_dimension, scope):
 		"""
 		Initialization function

@@ -1,4 +1,6 @@
-class feature_regression():
+import tensorflow as tf
+
+class FeatureRegressor(object):
 	def __init__(self, image_dimension, scope):
 		"""
 		Initialization function
