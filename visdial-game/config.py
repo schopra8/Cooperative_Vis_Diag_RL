@@ -6,6 +6,7 @@ class config():
     END_TOKEN = '<STOP>'
     MAX_QUESTION_LENGTH = 20
     MAX_ANSWER_LENGTH = 20
+    VOCAB_SIZE = 1 # TODO: FIX THIS
 
     # Training Parameters
 

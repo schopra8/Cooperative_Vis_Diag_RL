@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tf.python.keras.applications.vgg16 import VGG16
 import os, sys
 from modules.a_history_encoder import AHistoryEncoder
 from modules.answer_decoder import AnswerDecoder
@@ -12,28 +13,33 @@ sys.path.append('../')
 from models.qbot import QBot
 from models.abot import ABot
 
-class DeepABot(ABot):
+class DeepABot():
     """Abstracts an A-Bot for answering questions about a photo
     """
     def __init__(self, config):
         with tf.variable_scope("a_bot") as scope:
             self.config = config
             self.fact_encoder = FactEncoder(self.config.hidden_dims, scope)
-            self.question_encoder = QuestionDecoder(
+            self.question_encoder = QuestionEncoder(
                 self.config.hidden_dims,
                 scope
             )
             self.answer_decoder = AnswerDecoder(
                 self.config.hidden_dims,
-                self.config.START_TOKEN,
-                self.config.END_TOKEN,
+                self.config.START_TOKEN, # TODO: Replace with start token embedding
+                self.config.END_TOKEN, # TODO: Replace with end token index
                 self.config.MAX_ANSWER_LENGTH,
+                self.config.VOCAB_SIZE,
                 scope
             )
             self.history_encoder = QHistoryEncoder(
                 self.config.hidden_dims,
                 scope
-            )        
+            )
+            self.VGG_Encoder = VGG16(
+                include_top=False,
+                weights='imagenet',
+            )
 
     def encode_images_captions(self, captions, images):
         """Encodes the captions and the images into the states
@@ -79,16 +85,6 @@ class DeepABot(ABot):
         """
         raise NotImplementedError("Each A-Bot must re-implement this method.")
 
-    def decode_answers(self, states):
-        """Generates answer given the current states (Answer Decoder)
-
-        Args:
-            states: encoded states
-        Returns:
-            answers: answers
-        """
-        raise NotImplementedError("Each A-Bot must re-implement this method.")
-
     def generate_image_representations(self, states):
         """Guesses images given the current states (Feature Regression Network)
 
@@ -98,16 +94,6 @@ class DeepABot(ABot):
             image_repr: representation of the predicted images [Batch Size, 1]
         """
         raise NotImplementedError("Each Q-Bot must re-implement this method.")
-
-    def get_q_values(self, states):
-        """Returns all Q-values for all actions given states
-
-        Args:
-            state: encoded states [Batch Size, 1]
-        Returns:
-            values: mapping of actions to expected return values [Batch Size, 1]
-        """
-        raise NotImplementedError("Each A-Bot must re-implement this method.")
 
     def get_answers(self, states):
         """Returns answers according to some exploration policy given encoded states
@@ -119,7 +105,7 @@ class DeepABot(ABot):
         """
         raise NotImplementedError("Each A-Bot must re-implement this method.")
 
-class DeepQBot(QBot):
+class DeepQBot():
     """Abstracts a Q-Bot for asking questions about a photo
     """
     def __init__(self, config):
@@ -128,9 +114,10 @@ class DeepQBot(QBot):
             self.fact_encoder = FactEncoder(self.config.hidden_dims, scope)
             self.question_decoder = QuestionDecoder(
                 self.config.hidden_dims,
-                self.config.START_TOKEN,
-                self.config.END_TOKEN,
+                self.config.START_TOKEN, # TODO: Replace with start token embedding
+                self.config.END_TOKEN, # TODO: Replace with end token index
                 self.config.MAX_QUESTION_LENGTH,
+                self.config.VOCAB_SIZE,
                 scope
             )
             self.history_encoder = QHistoryEncoder(
@@ -173,16 +160,6 @@ class DeepQBot(QBot):
             state: encoded state that combines the current facts and previous facts [Batch Size, 1]
         """
         return self.history_encoder.generate_next_state(recent_facts, prev_states)
-
-    def decode_questions(self, states):
-        """Decodes (generates) questions given the current states (Question Decoder)
-
-        Args:
-            states (list of tuples) [Batch Size]: encoded states
-        Returns:
-            questions: (list of ints) [Batch Size]
-        """
-        raise NotImplementedError("Each Q-Bot must re-implement this method.")
 
     def generate_image_representations(self, states):
         """Guesses images given the current states (Feature Regression Network)
