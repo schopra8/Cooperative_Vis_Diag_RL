@@ -33,12 +33,13 @@ class model():
 
 	def show_dialog(self, image, caption, answer):
 		pass
-	def concatenate_q_a(self, question, question_lengths, answers, asnwer_lengths):
-		
-		stripped_question_answer_pairs = [tf.concat([question[i,0:question_lengths[i],:], answer[i,0:answer_lengths[i],:]], axis = 1)for i in xrange(self.config.batch_size)]
-		max_size = self.config.max_question_size + self.config.max_answer_size
-		padded_question_answer_pairs = [tf.pad(stripped_question_answer_pairs[i], [0, max_size - tf.shape(stripped_question_answer_pairs[i])[0]]) for i in xrange(self.config.batch_size)]
-		question_answer_pairs = tf.stack(padded_question_answer_pairs, axis = 0)
+
+def concatenate_q_a(self, questions, question_lengths, answers, answer_lengths):
+	batch_size = tf.shape(questions)[0]
+	stripped_question_answer_pairs = [tf.concat([questions[i,0:question_lengths[i],:], answer[i,0:answer_lengths[i],:]], axis = 1)for i in xrange(batch_size)]
+	max_size = self.config.MAX_QUESTION_LENGTH + self.config.MAX_ANSWER_LENGTH
+	padded_question_answer_pairs = [tf.pad(stripped_question_answer_pairs[i], [0, max_size - tf.shape(stripped_question_answer_pairs[i])[0]]) for i in xrange(batch_size)]
+	question_answer_pairs = tf.stack(padded_question_answer_pairs, axis = 0)
 
 
 	
