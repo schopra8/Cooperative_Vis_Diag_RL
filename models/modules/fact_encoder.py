@@ -6,7 +6,6 @@ class fact_encoder():
 		====================
 		INPUTS:
 		hidden_dimension: int - shape of the hidden state for the LSTM/RNN cells used
-		start_token : float of shape (embedding_size) - word embedding of the start_token
 		max_question_length : int - length of longest question
 		====================
 		"""
