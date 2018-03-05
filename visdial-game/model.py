@@ -49,7 +49,7 @@ class model():
 		question_answer_pair_lengths = (batch_size): The actual length of the question, answer concatenations
 		"""
 		batch_size = tf.shape(questions)[0]
-		stripped_question_answer_pairs = [tf.concat([questions[i,0:question_lengths[i],:], answer[i,0:answer_lengths[i],:]], axis = 1)for i in xrange(batch_size)]
+		stripped_question_answer_pairs = [tf.concat([questions[i,0:question_lengths[i],:], answers[i,0:answer_lengths[i],:]], axis = 1)for i in xrange(batch_size)]
 		max_size = self.config.MAX_QUESTION_LENGTH + self.config.MAX_ANSWER_LENGTH
 		padded_question_answer_pairs = [tf.pad(stripped_question_answer_pairs[i], [0, max_size - tf.shape(stripped_question_answer_pairs[i])[0]]) for i in xrange(batch_size)]
 		question_answer_pairs = tf.stack(padded_question_answer_pairs, axis = 0)
