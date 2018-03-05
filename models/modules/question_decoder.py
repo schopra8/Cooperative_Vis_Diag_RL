@@ -55,7 +55,7 @@ class QuestionDecoder(object):
 				helper = tf.contrib.seq2seq.TrainingHelper(true_questions, true_question_lengths, self.scope)
 			else:
 				start_tokens = tf.tile(self.start_token, [tf.shape(states)[0]])
-				helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding = embedding, start_tokens = start_tokens, end_token = self.end_token)
+				helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=embedding, start_tokens=start_tokens, end_token=self.end_token)
 			decoder = tf.contrib.seq2seq.BasicDecoder(self.cell, helper, states)
 			#final sequence of outputs
 			#final_outputs = (batch_size, max_sequence_length, hidden_size)
@@ -63,5 +63,4 @@ class QuestionDecoder(object):
 			#final_sequence_lengths = (batch_size)
 			final_outputs, final_state, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
 														impute_finished=True, maximum_iterations=self.max_question_length)
-		
 			return final_outputs, final_state, final_sequence_lengths

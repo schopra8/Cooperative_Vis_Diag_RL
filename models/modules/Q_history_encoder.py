@@ -5,7 +5,6 @@ class QHistoryEncoder(object):
 		Takes in previous state, and returns the question for that time step
 		### Dimensions
 		Previous state: (batch_size, hidden_dimension)
-		Question: (batch_size, question_length, indices)
 	"""
 	def __init__(self, hidden_dimension, scope):
 		"""
@@ -30,12 +29,12 @@ class QHistoryEncoder(object):
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
 			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
 
-	def generate_next_state(self, prev_state, current_facts):
+	def generate_next_state(self, prev_states, current_facts):
 		"""
 		Builds the graph to take in the previous state, and current fact and generates the new state
 		===================================
 		INPUTS:
-		prev_state: float of shape (batch_size, hidden_dimension) - The state/history encoding for this round of dialog
+		prev_states: float of shape (batch_size, hidden_dimension) - The state/history encoding for this round of dialog
 		current_facts: float of shape (batch_size, hidden_dimension) - The encoding of the (q,a) pair for this round of dialog
 		===================================
 		OUTPUTS:
@@ -46,7 +45,7 @@ class QHistoryEncoder(object):
 			outputs, next_states = tf.nn.dynamic_rnn(
 				self.cell,
 				current_facts,
-				initial_state=prev_state,
+				initial_state=prev_states,
 				sequence_length=None, # TODO: Add this maybe?
 				dtype=tf.float32,
 			)

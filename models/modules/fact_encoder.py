@@ -37,7 +37,7 @@ class FactEncoder(object):
 		"""
 		with tf.varible_scope(self.scope):
 			# TODO: Determine how to extract questions and answers (removing padding for questions and answers)
-			inputs = tf.concat([questions, answers], 1) # Concatenate along max_qustion_length/max_answer_length dimension
+			inputs = tf.concat([questions, answers], 1) # Concatenate along max_question_length/max_answer_length dimension
 			_, next_facts = tf.nn.dynamic_rnn(
 				self.cell,
 				inputs,
