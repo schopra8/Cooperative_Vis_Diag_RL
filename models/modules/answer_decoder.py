@@ -35,7 +35,7 @@ class AnswerDecoder():
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
 			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
 
-	def generate_answer(self, states, true_answers, true_answer_lengths, flag=True, embedding = None):
+	def generate_answer(self, states, true_answers, true_answer_lengths, supervised_training=True, embedding=None):
 		"""
 		Builds the graph to take in the state, and generate an answer
 		TODO: Differentiate between supervised pre-training and RL-training:
@@ -44,7 +44,7 @@ class AnswerDecoder():
 		states: float of shape (batch_size, hidden_dimension) - The state/history encoding for this round of dialog
 		true_answers: float of shape (batch_size, max_answer_length, embedding_size) || Assumed that answers have been padded to max_answer_length
 		true_answer_lengths: int of shape(batch_size) - How long is the actual answers?
-		flag: bool True: supervised pretraining || False: RL training
+		supervised_training: bool True: supervised pretraining || False: RL training
 		embedding: embedding matrix of size (embedding_size, vocabulary_size)
 		===================================
 		OUTPUTS:
@@ -53,20 +53,15 @@ class AnswerDecoder():
 		final_sequence_lengths = (batch_size): The actual length of the answers
 		"""
 		with tf.varible_scope(self.scope):
-			#start_tokens to 
-			# start_tokens = tf.tile(self.start_token, [tf.shape(states)[0],1])
-			if flag:
+			if supervised_training:
 				helper = tf.contrib.seq2seq.TrainingHelper(true_answers, true_answer_lengths, self.scope)
 			else:
 				start_tokens = tf.tile(self.start_token, [tf.shape(states)[0]])
 				helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding = embedding, start_tokens = start_tokens, end_token = self.end_token)
-			#decoder instance
 			decoder = tf.contrib.seq2seq.BasicDecoder(self.cell, helper, states)
-			#final sequence of outputs
-			#final_outputs = (batch_size, max_sequence_length, hidden_size)
-			#final_state = (batch_size, hidden_size)
-			#final_sequence_lengths = (batch_size)
+			# final_outputs = (batch_size, max_sequence_length, hidden_size)
+			# final_state = (batch_size, hidden_size)
+			# final_sequence_lengths = (batch_size)
 			final_outputs, final_state, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
 														impute_finished=True, maximum_iterations=self.max_answer_length)
-		
 			return final_outputs, final_state, final_sequence_lengths
