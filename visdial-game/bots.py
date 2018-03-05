@@ -36,12 +36,8 @@ class DeepABot():
                 self.config.hidden_dims,
                 scope
             )
-            self.VGG_Encoder = VGG16(
-                include_top=False,
-                weights='imagenet',
-            )
 
-    def encode_images_captions(self, captions, images):
+    def encode_images_captions(self, captions, images, caption_lengths):
         """Encodes the captions and the images into the states
 
         Args:
