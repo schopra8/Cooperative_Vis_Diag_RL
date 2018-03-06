@@ -23,7 +23,7 @@ class QHistoryEncoder(object):
 		Creates the RNN's which do the dirty work
 		===================================
 		"""
-		with tf.varible_scope(self.scope):
+		with tf.variable_scope(self.scope):
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
 			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
 
@@ -39,7 +39,7 @@ class QHistoryEncoder(object):
 			outputs: float of shape (batch_size, max_fact_length, hidden_dimension)
 			next_states: float of shape (batch_size, hidden_dimension) - The new state/history encoding generated using the current_fact
 		"""
-		with tf.varible_scope(self.scope):
+		with tf.variable_scope(self.scope):
 			outputs, next_states = tf.nn.dynamic_rnn(
 				self.cell,
 				current_facts,

@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tf.python.keras.applications.vgg16 import VGG16
 import os, sys
 from modules.a_history_encoder import AHistoryEncoder
 from modules.answer_decoder import AnswerDecoder
@@ -32,74 +31,72 @@ class DeepABot():
                 self.config.VOCAB_SIZE,
                 scope
             )
-            self.history_encoder = QHistoryEncoder(
+            self.history_encoder = AHistoryEncoder(
                 self.config.hidden_dims,
                 scope
             )
 
     def encode_images_captions(self, captions, images, caption_lengths):
-        """Encodes the captions and the images into the states
+        """Encodes the captions and the images into initial states (S0) for A Bot.
 
         Args:
             captions [Batch Size, Caption] : Gives the captions for the current round of dialog
             images [Batch Size, Image] : The images for the dialog
+            caption_lengths [Batch Size]: Gives lengths of the captions
         """
-        raise NotImplementedError("Each A-Bot must re-implement this method.")
+        batch_size = tf.shape(captions)[0]
+        empty_questions = tf.zeros([batch_size, self.config.MAX_QUESTION_LENGTH])
+        encoded_captions = self.fact_encoder.generate_fact(captions, caption_lengths)
+        _, initial_states = self.history_encoder.generate_next_state(encoded_captions, empty_questions, images, prev_states=None)
+        return initial_states
 
     def encode_questions(self, questions):
         """Encodes questions (Question Encoder)
 
         Args:
-            questions: questions that the Q-Bot asked [Batch Size, 1]
+            questions: questions that the Q-Bot asked [Batch Size, max_question_length, vocab_size]
         Returns:
-            question_encodings: encoding of the questions [Batch Size,]
+            question_encodings: encoding of the questions [Batch Size, hidden_size]
         """
-        raise NotImplementedError("Each A-Bot must re-implement this method.")
+        return self.question_encoder.encoded_questions(questions)
 
-    def encode_facts(self, questions, answers):
+    def encode_facts(self, inputs, input_lengths):
         """Encodes questions and answers into a fact (Fact Encoder)
 
         Args:
-            questions: questions asked by the Q-Bot in the most recent round [Batch Size]
-            answers: answers given by the A-Bot in response to the questions [Batch Size]
+            inputs: concatenation of questions and answers [Batch Size, max_question_length + max_answer_length, vocab_size]
+            input_lengths: true lengths of each q,a concatenation
         Returns:
             facts: encoded facts that combine the question and answer
         """
-        raise NotImplementedError("Each Q-Bot must re-implement this method.")
+        return self.fact_encoder.generate_fact(inputs, input_lengths)
 
-    def encode_state_histories(self, images, captions, question_encodings, recent_facts, prev_states):
+    def encode_state_histories(self, images, question_encodings, recent_facts, prev_states):
         """Encodes states as a combination of facts (State/History Encoder)
 
         Args:
-            images [Batch Size, Image] : The images for the dialog
-            captions [Batch Size, Caption] : Gives the captions for the current round of dialog
-            question_encodings: encoded questions [Batch Size]
-            recent_facts: encoded facts [Batch Size]
-            prev_states: prev states [Batch Size]
+            images [Batch Size, VGG Image Representation] : The images for the dialog
+            question_encodings: encoded questions [Batch Size, hidden size]
+            recent_facts: encoded facts [Batch Size, hidden size]
+            prev_states: prev states [Batch Size, hidden size]
         Returns:
             states: encoded states that combine images, captions, question_encodings, recent_facts
         """
-        raise NotImplementedError("Each A-Bot must re-implement this method.")
+        outputs, states = self.history_encoder.generate_next_state(recent_facts, question_encodings, images, prev_states)
+        return outputs, states
 
-    def generate_image_representations(self, states):
-        """Guesses images given the current states (Feature Regression Network)
-
-        Args:
-            state: encoded states [Batch Size, 1]
-        Returns:
-            image_repr: representation of the predicted images [Batch Size, 1]
-        """
-        raise NotImplementedError("Each Q-Bot must re-implement this method.")
-
-    def get_answers(self, states):
+    def get_answers(self, states, true_answers=None, true_answer_lengths=None, supervised_training=False):
         """Returns answers according to some exploration policy given encoded states
 
         Args:
-            state: encoded states [Batch Size, 1]
+            state: encoded states [Batch Size, hidden dim]
         Returns:
-            answers: answers that A Bot will provide [Batch Size, 1]
+            answers: answers that A Bot will provide [Batch Size, max_answer_length]
         """
-        raise NotImplementedError("Each A-Bot must re-implement this method.")
+        if supervised_training:
+            assert (true_answers != None and true_answer_lengths != None)
+        answers, answer_lengths = self.answer_decoder.generate_answer(states, true_answers, true_answer_lengths, supervised_training)
+        return answers, answer_lengths
 
 class DeepQBot():
     """Abstracts a Q-Bot for asking questions about a photo
@@ -120,6 +117,7 @@ class DeepQBot():
                 self.config.hidden_dims,
                 scope
             )
+            self.feature_regressor = FeatureRegression(self.config.IMG_REP_DIM, scope)
 
     def encode_captions(self, captions, caption_lengths):
         """Encodes captions.
@@ -129,50 +127,51 @@ class DeepQBot():
         Returns:
             captions: encoded captions  
         """
-        fact_captions = self.fact_encoder.generate_fact_from_captions(captions, caption_lengths)
+        fact_captions = self.fact_encoder.generate_next_fact(captions, caption_lengths)
         state_captions = self.history_encoder.generate_next_state(fact_captions)
         return state_captions
 
-    def encode_facts(self, questions, answers):
+    def encode_facts(self, inputs, input_lengths):
         """Encodes questions and answers into a fact (Fact Encoder)
 
         Args:
-            questions: questions asked by the Q-Bot in the most recent round 
-                       float of shape (batch size, max_question_length, embedding_dims)
-            answers: answers given by the A-Bot in response to the questions 
-                       float of shape (batch size, max_answer_length, embedding_dims)
+            inputs: concatenation of questions and answers [Batch Size, max_question_length + max_answer_length, vocab_size]
+            input_lengths: true lengths of each q,a concatenation
         Returns:
             facts: encoded facts that combine the question and answer
         """
-        return self.fact_encoder.generate_next_fact(questions, answers)
+        return self.fact_encoder.generate_next_fact(inputs, input_lengths)
 
     def encode_state_histories(self, prev_states, recent_facts):
         """Encodes states as a combination of facts for a given round (State/History Encoder)
 
         Args:
-            prev_states: [(q_1, a_1, q_2, a_2) ... ] List of tuples
-            recent_facts: [(q_n, a_n), ...] List of yuples
+            prev_states
+            recent_facts
         Returns:
             state: encoded state that combines the current facts and previous facts [Batch Size, 1]
         """
-        return self.history_encoder.generate_next_state(recent_facts, prev_states)
+        outputs, next_states = self.history_encoder.generate_next_state(recent_facts, prev_states)
+        return outputs, next_states
 
     def generate_image_representations(self, states):
         """Guesses images given the current states (Feature Regression Network)
 
         Args:
-            state: encoded states [Batch Size, 1]
+            state: encoded states [Batch Size, hiden_size]
         Returns:
-            image_repr: representation of the predicted images [Batch Size, 1]
+            image_repr: representation of the predicted images [Batch Size, IMG_REP_DIM]
         """
-        raise NotImplementedError("Each Q-Bot must re-implement this method.")
+        return self.feature_regressor.generate_image_prediction(states)
 
-    def get_questions(self, states):
+    def get_questions(self, states, true_questions=None, true_question_lengths=None, supervised_training=False):
         """Returns questions according to some exploration policy given encoded states
 
         Args:
-            state: encoded states [Batch Size, 1]
+            state: encoded states [Batch Size, hidden size]
         Returns:
-            questions: questions that Q Bot will ask [Batch Size, 1]
+            questions: questions that Q Bot will ask [Batch Size, max_question_length]
         """
-        raise NotImplementedError("Each Q-Bot must re-implement this method.")
+        if supervised_training:
+            assert (true_questions != None and true_question_lengths != None)
+        self.question_decoder.generate_question(states, true_questions=None, true_question_lengths=None, supervised_training)

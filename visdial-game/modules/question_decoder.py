@@ -72,4 +72,4 @@ class QuestionDecoder(object):
 			#final_sequence_lengths = (batch_size)
 			final_outputs, _, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
 														impute_finished=True, maximum_iterations=self.max_question_length)
-			return final_outputs, _, final_sequence_lengths
+			return final_outputs, final_sequence_lengths
