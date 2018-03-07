@@ -73,6 +73,9 @@ class model():
 		A_fact = self.Abot.encode_facts(self.captions, self.caption_lengths)
 		prev_image_guess = self.Qbot.generate_image_representations(Q_state)
 		loss = 0
+		generated_questions = []
+		generated_answers = []
+		generated_images = []
 		for i in xrange(self.config.num_dialog_rounds):
 			x = tf.constant(i)
 			if tf.greater_equal(x, self.supervised_learning_rounds): ## RL training
@@ -80,6 +83,7 @@ class model():
 				question_logits, question_lengths = self.Qbot.get_questions(Q_state, supervised_training = False)
 				#Find embeddings of questions
 				questions = tf.nn.embedding_lookup(self.embedding_matrix, tf.argmax(question_logits, axis = 2))
+				generated_questions.append(questions)
 				#A-bot encodes questions
 				encoded_questions = self.Abot.encode_questions(questions)
 				#A-bot updates state
@@ -87,6 +91,8 @@ class model():
 				#Abot generates answer logits
 				answer_logits, answer_lengths = self.Abot.get_answers(A_state, supervised_training=False)
 				#Generate facts for that round of dialog
+				generated_answers.append(tf.nn.embedding_lookup(self.embedding_matrix, tf.argmax(answer_logits, axis = 2)))
+
 				facts, fact_lengths = self.concatenate_q_a(question_logits, question_lengths, answer_logits, answer_lengths)
 				#Embed the facts into word vector space
 				facts = tf.nn.embedding_lookup(self.embedding_matrix, tf.argmax(facts, axis = 2))
@@ -96,7 +102,7 @@ class model():
 				Q_state = self.Qbot.encode_state_histories(Q_fact, Q_state)
 				# QBot Generates guess of image
 				image_guess = self.Qbot.generate_image_representations(Q_state)
-				
+				generated_images.append(image_guess)
 				#Calculate loss for this round
 				reward = tf.reduce_sum(tf.square(prev_image_guess - self.images), axis = 1) - tf.reduce_sum(tf.square(image_guess - images), axis = 1)
 				prev_image_guess = image_guess
@@ -145,7 +151,7 @@ class model():
 				dialog_loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits = answer_logits, labels = answers)
 				image_loss += tf.nn.l2_loss(image_guess - self.images)
 				loss += dialog_loss + image_loss
-			return loss
+		return loss, generated_questions, generated_answers, generated_images
 
 
 	def get_minibatches(self, batch_size=40):
@@ -178,9 +184,11 @@ class model():
 		_, loss = sess.run([self.update_op, self.loss], feed_dict = feed)
 		return loss
 
-	def evaluate(self, minibatch_generator, max_dialog_rounds):
+	def evaluate(self):
 		
 		#questions, answers, image guesses
+
+
 
 	def show_dialog(self, image, caption, answer):
 		pass
