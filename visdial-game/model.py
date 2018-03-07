@@ -22,6 +22,7 @@ class model():
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
 			# TODO: Insert lookup callable function here
 		)
+		self.global_step = tf.Variable(0, name="global_step", trainable=False)
 
 	def add_placeholders(self):
 		"""
