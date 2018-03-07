@@ -11,7 +11,9 @@ class config():
     VOCAB_SIZE = 1 # TODO: INCLUDING START and END TOKENS
     IMG_REP_DIM = 300 # TODO: FIX THIS
     EMBEDDING_SIZE = 300
-
+    batch_size = 40
+    number_of_dialog_rounds = 10
+    max_gradient_norm = 5
     # Training Parameters
 
     class Q():
