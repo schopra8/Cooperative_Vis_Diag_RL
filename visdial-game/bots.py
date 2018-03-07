@@ -58,7 +58,7 @@ class DeepABot():
         Returns:
             question_encodings: encoding of the questions [Batch Size, hidden_size]
         """
-        return self.question_encoder.encoded_questions(questions)
+        return self.question_encoder.encode_questions(questions)
 
     def encode_facts(self, inputs, input_lengths):
         """Encodes questions and answers into a fact (Fact Encoder)
@@ -71,7 +71,7 @@ class DeepABot():
         """
         return self.fact_encoder.generate_fact(inputs, input_lengths)
 
-    def encode_state_histories(self, images, question_encodings, recent_facts, prev_states):
+    def encode_state_histories(self, recent_facts, images, question_encodings, prev_states):
         """Encodes states as a combination of facts (State/History Encoder)
 
         Args:
@@ -82,8 +82,8 @@ class DeepABot():
         Returns:
             states: encoded states that combine images, captions, question_encodings, recent_facts
         """
-        outputs, states = self.history_encoder.generate_next_state(recent_facts, question_encodings, images, prev_states)
-        return outputs, states
+        states = self.history_encoder.generate_next_state(recent_facts, question_encodings, images, prev_states)
+        return states
 
     def get_answers(self, states, true_answers=None, true_answer_lengths=None, supervised_training=False):
         """Returns answers according to some exploration policy given encoded states
@@ -91,12 +91,18 @@ class DeepABot():
         Args:
             state: encoded states [Batch Size, hidden dim]
         Returns:
-            answers: answers that A Bot will provide [Batch Size, max_answer_length]
+            answers: answers that A Bot will provide [Batch Size, max_answer_length, vocabulary_size]
+            answer_lengths: lengths of individaul answers [Batch Size] (since answres are zero padded )
         """
         if supervised_training:
             assert (true_answers != None and true_answer_lengths != None)
-        answers, answer_lengths = self.answer_decoder.generate_answer(states, true_answers, true_answer_lengths, supervised_training)
-        return answers, answer_lengths
+        answer_logits, answer_lengths = self.answer_decoder.generate_answer(
+            states,
+            true_answers,
+            true_answer_lengths,
+            supervised_training
+        )
+        return answer_logits, answer_lengths
 
 class DeepQBot():
     """Abstracts a Q-Bot for asking questions about a photo
@@ -142,7 +148,7 @@ class DeepQBot():
         """
         return self.fact_encoder.generate_next_fact(inputs, input_lengths)
 
-    def encode_state_histories(self, prev_states, recent_facts):
+    def encode_state_histories(self, recent_facts, prev_states=None):
         """Encodes states as a combination of facts for a given round (State/History Encoder)
 
         Args:
@@ -174,4 +180,10 @@ class DeepQBot():
         """
         if supervised_training:
             assert (true_questions != None and true_question_lengths != None)
-        self.question_decoder.generate_question(states, true_questions=None, true_question_lengths=None, supervised_training)
+        question_logits, question_lengths = self.question_decoder.generate_question(
+            states,
+            true_questions=true_questions,
+            true_question_lengths=true_question_lengths,
+            supervised_training=supervised_training
+        )
+        return question_logits, question_lengths

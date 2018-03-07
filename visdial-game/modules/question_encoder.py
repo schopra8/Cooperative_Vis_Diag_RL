@@ -36,9 +36,11 @@ class QuestionEncoder(object):
 		INPUTS:
 		questions: float - (batch_size, max_sequence_length, vocabulary_size)
 		"""
-		batch_size = tf.shape(questions)[0]
-		encoded_questions, _ = tf.nn.dynamic_rnn(
-			self.cell,
-			questions,
-			dtype=tf.float32
-		)
+		with tf.varible_scope(self.scope):
+			batch_size = tf.shape(questions)[0]
+			encoded_questions, _ = tf.nn.dynamic_rnn(
+				self.cell,
+				questions,
+				dtype=tf.float32
+			)
+			return encoded_questions

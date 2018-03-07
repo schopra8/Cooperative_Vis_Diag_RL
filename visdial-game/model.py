@@ -8,8 +8,8 @@ class model():
 		""" Sets up the configuration parameters, creates Q Bot + A Bot.
 		"""
 		self.config= config
-		self.Qbot = DeepQBot()
-		self.Abot = DeepABot()
+		self.Qbot = DeepQBot(self.config)
+		self.Abot = DeepABot(self.config)
 		self.embedding_matrix = tf.get_variable("word_embeddings", shape=[self.config.VOCAB_SIZE, self.config.EMBEDDING_SIZE])
 
 	def add_placeholders(self):
@@ -32,9 +32,9 @@ class model():
 		OUTPUTS:
 		loss: float loss for the entire batch
 		"""
-		#Embedding lookup - padding (Add lengths)
-		#dialog has questions and answers as indices. Not embedded. But padded.
-		captions = self.embedding_lookup(captions)
+		# Embedding lookup - padding (Add lengths)
+		# Dialog has questions and answers as indices. Not embedded. But padded.
+		captions = tf.nn.embedding_lookup(self.embedding_matrix, captions)
 		Q_state = self.Qbot.encode_captions(captions, caption_lengths)
 		A_state = self.Abot.encode_images_captions(images, captions, caption_lengths)
 		A_fact = self.Abot.encode_facts(captions, caption_lengths)
@@ -43,29 +43,30 @@ class model():
 		for i in xrange(num_dialog_rounds):
 			if i >= supervised_learning_rounds: ## RL training
 				#Q-Bot generates question logits
-				question_logits, question_lengths =  self.Qbot.get_questions(Q_state, supervised_training = False)
+				question_logits, question_lengths = self.Qbot.get_questions(Q_state, supervised_training = False)
 				#Find embeddings of questions
 				questions = tf.nn.embedding_lookup(self.embedding_matrix, tf.argmax(question_logits, axis = 2))
 				#A-bot encodes questions
 				encoded_questions = self.Abot.encode_questions(questions)
 				#A-bot updates state
-				A_state = self.Abot.encode_state_histories(images, captions, encoded_questions, A_fact, A_state)
+				A_state = self.Abot.encode_state_histories(A_fact, images, encoded_questions, A_state)
 				#Abot generates answer logits
-				answer_logits, answer_lengths = self.Abot.get_answers(A_state, supervised_training = False)
+				answer_logits, answer_lengths = self.Abot.get_answers(A_state, supervised_training=False)
 				#Generate facts for that round of dialog
 				facts, fact_lengths = self.concatenate_q_a(question_logits, question_lengths, answer_logits, answer_lengths)
 				#Embed the facts into word vector space
-				facts = tf.nn.embedding_lookup(self.embedding_matrix, tf.argmax(question_logits, axis = 2))
+				facts = tf.nn.embedding_lookup(self.embedding_matrix, tf.argmax(facts, axis = 2))
 				#Encode facts into both bots
 				A_fact = self.Abot.encode_facts(facts, fact_lengths)
 				Q_fact = self.Qbot.encode_facts(facts, fact_lengths)
-				Q_state = self.Qbot.encode_state_histories(Q_state, facts, fact_lengths)
+				Q_state = self.Qbot.encode_state_histories(Q_fact, Q_state)
 				# QBot Generates guess of image
 				image_guess = self.Qbot.generate_image_representations(Q_state)
 				
 				#Calculate loss for this round
 				reward = tf.reduce_sum(tf.square(prev_image_guess - images), axis = 1) - tf.reduce_sum(tf.square(image_guess - images), axis = 1)
 				prev_image_guess = image_guess
+
 				#### CHANGE HERE FOR UPDATING ONLY SINGLE BOT
 				prob_questions = tf.argmax(tf.nn.softmax(question_logits, axis = 2), axis = 2)
 				prob_answers = tf.argmax(tf.nn.softmax(answer_logits, axis = 2), axis = 2)
@@ -79,20 +80,30 @@ class model():
 				true_question_lengths_round = true_question_lengths[:,i]
 				true_answer_lengths_round = true_answer_lengths[:,i]
 				#Generate questions based on current state
-				question_logits, question_lengths =  self.Qbot.get_questions(Q_state, supervised_training = True)
+				question_logits, question_lengths = self.Qbot.get_questions(
+					Q_state,
+					true_questions=questions,
+					true_question_lengths=true_question_lengths_round,
+					supervised_training=True
+				)
 				#Encode the true questions
 				encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, questions))
 				#Update A state based on true question
-				A_state = self.Abot.encode_state_histories(images, captions, encoded_questions, A_fact, A_state)
+				A_state = self.Abot.encode_state_histories(A_fact, images, encoded_questions, A_state)
 				# ABot Generates answers based on current state
-				answer_logits, answer_lengths = self.Abot.get_answers(A_state, supervised_training = True)
+				answer_logits, answer_lengths = self.Abot.get_answers(
+					A_state,
+					true_answers=answers,
+					true_answer_lengths=answer_lengths,
+					supervised_training=True
+				)
 				#Generate facts from true questions and answers
 				facts, fact_lengths = self.concatenate_q_a(questions, true_question_lengths_round, answers, true_answer_lengths_round)
 				facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
 				#Update state histories using current facts
 				A_fact = self.Abot.encode_facts(facts, fact_lengths)
 				Q_fact = self.Qbot.encode_facts(facts, fact_lengths)
-				Q_state = self.Qbot.encode_state_histories(Q_state, facts, fact_lengths)
+				Q_state = self.Qbot.encode_state_histories(facts, Q_state)
 				#Guess image
 				image_guess = self.Qbot.generate_image_representations(Q_state)
 				#### Loss for supervised training
@@ -106,7 +117,6 @@ class model():
 
 	def get_minibatches(self, batch_size=20):
 		pass
-			
 
 	def get_returns(self, trajectories, predictions, labels, gamma):
 		""" Gets returns for a list of trajectories.
