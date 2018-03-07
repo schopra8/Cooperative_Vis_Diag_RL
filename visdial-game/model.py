@@ -15,12 +15,12 @@ class model():
 		self.Qbot = DeepQBot(
 			self.config,
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
-			# TODO: Insert lookup callable function here
+			embedding_matrix
 		)
 		self.Abot = DeepQBot(
 			self.config,
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
-			# TODO: Insert lookup callable function here
+			embedding_matrix
 		)
 		self.global_step = tf.Variable(0, name="global_step", trainable=False)
 
@@ -177,7 +177,7 @@ class model():
 			self.true_questions:true_questions,
 			self.true_question_lengths:true_question_lengths,
 			self.true_answers:true_answers,
-			self.true_answer_lengths: true_answer_lengths
+			self.true_answer_lengths: true_answer_lengths,
 			self.supervised_learning_rounds:supervised_learning_rounds
 		}
 		_, loss = sess.run(self.update_op, self.loss, feed_dict = feed)
@@ -188,6 +188,8 @@ class model():
 
 	def show_dialog(self, image, caption, answer):
 		pass
+
+
 
 	def concatenate_q_a(self, questions, question_lengths, answers, answer_lengths):
 		"""
@@ -210,4 +212,3 @@ class model():
 		question_answer_pairs = tf.stack(padded_question_answer_pairs, axis = 0)
 		question_answer_pair_lengths = tf.add(question_lengths, answer_lengths)
 		return question_answer_pairs, question_answer_pair_lengths
-
