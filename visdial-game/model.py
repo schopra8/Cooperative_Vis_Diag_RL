@@ -51,7 +51,7 @@ class model():
 				#A-bot updates state
 				A_state = self.Abot.encode_state_histories(images, captions, encoded_questions, A_fact, A_state)
 				#Abot generates answer logits
-				answer_logits, answer_lengths = self.Abot.get_answers(A_state)
+				answer_logits, answer_lengths = self.Abot.get_answers(A_state, supervised_training = False)
 				#Generate facts for that round of dialog
 				facts, fact_lengths = self.concatenate_q_a(question_logits, question_lengths, answer_logits, answer_lengths)
 				#Embed the facts into word vector space
