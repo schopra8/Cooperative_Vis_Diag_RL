@@ -42,7 +42,7 @@ class model():
 				#Q-Bot generates question logits
 				question_logits, question_lengths =  self.Qbot.get_questions(Q_state, supervised_training = False)
 				#Find embeddings of questions
-				questions = self.embedding_lookup(tf.argmax(question_logits, axis = 2))
+				questions = tf.nn.embedding_lookup(self.embedding_matrix, tf.argmax(question_logits, axis = 2))
 				#A-bot encodes questions
 				encoded_questions = self.Abot.encode_questions(questions)
 				#A-bot updates state
@@ -52,7 +52,7 @@ class model():
 				#Generate facts for that round of dialog
 				facts, fact_lengths = self.concatenate_q_a(question_logits, question_lengths, answer_logits, answer_lengths)
 				#Embed the facts into word vector space
-				facts = self.embedding_lookup(facts)
+				facts = tf.nn.embedding_lookup(self.embedding_matrix, tf.argmax(question_logits, axis = 2))
 				#Encode facts into both bots
 				A_fact = self.Abot.encode_facts(facts, fact_lengths)
 				Q_fact = self.Qbot.encode_facts(facts, fact_lengths)
@@ -78,14 +78,14 @@ class model():
 				#Generate questions based on current state
 				question_logits, question_lengths =  self.Qbot.get_questions(Q_state, supervised_training = True)
 				#Encode the true questions
-				encoded_questions = self.Abot.encode_questions(self.embedding_lookup(questions))
+				encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, questions))
 				#Update A state based on true question
 				A_state = self.Abot.encode_state_histories(images, captions, encoded_questions, A_fact, A_state)
 				# ABot Generates answers based on current state
 				answer_logits, answer_lengths = self.Abot.get_answers(A_state, supervised_training = True)
 				#Generate facts from true questions and answers
 				facts, fact_lengths = self.concatenate_q_a(questions, true_question_lengths, answers, true_answer_lengths)
-				facts = self.embedding_lookup(facts)
+				facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
 				#Update state histories using current facts
 				A_fact = self.Abot.encode_facts(facts, fact_lengths)
 				Q_fact = self.Qbot.encode_facts(facts, fact_lengths)
