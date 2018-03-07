@@ -10,6 +10,10 @@ class model():
 		self.config= config
 		self.Qbot = DeepQBot()
 		self.Abot = DeepABot()
+		self.embedding_matrix = tf.get_variable("word_embeddings", shape=[self.config.VOCAB_SIZE, self.config.EMBEDDING_SIZE])
+
+	def add_placeholders(self):
+		pass
 
 	def run_dialog(self, images, captions, dialog, dialog_lengths, num_dialog_rounds=10, curriculum_learning_rounds = 10):
 		Q_state = self.Qbot.encode_captions(captions, caption_lengths)
