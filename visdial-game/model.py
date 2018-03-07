@@ -8,9 +8,17 @@ class model():
 		""" Sets up the configuration parameters, creates Q Bot + A Bot.
 		"""
 		self.config= config
-		self.Qbot = DeepQBot(self.config)
-		self.Abot = DeepABot(self.config)
 		self.embedding_matrix = tf.get_variable("word_embeddings", shape=[self.config.VOCAB_SIZE, self.config.EMBEDDING_SIZE])
+		self.Qbot = DeepQBot(
+			self.config,
+			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
+			# TODO: Insert lookup callable function here
+		)
+		self.Abot = DeepQBot(
+			self.config,
+			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
+			# TODO: Insert lookup callable function here
+		)
 
 	def add_placeholders(self):
 		pass
