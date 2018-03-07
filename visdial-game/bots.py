@@ -29,7 +29,7 @@ class DeepABot():
                 end_token_idx=self.config.END_TOKEN_IDX,
                 max_answer_length=self.config.MAX_ANSWER_LENGTH,
                 vocabulary_size=self.config.VOCAB_SIZE,
-                embedding_lookup=embedding_lookup
+                embedding_lookup=embedding_lookup,
                 scope
             )
             self.history_encoder = AHistoryEncoder(
