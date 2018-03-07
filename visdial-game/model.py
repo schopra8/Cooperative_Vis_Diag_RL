@@ -11,23 +11,26 @@ class model():
 		self.Qbot = DeepQBot()
 		self.Abot = DeepABot()
 
-	def run_dialog(self, images, captions, dialog, dialog_lengths, num_dialog_rounds=10, supervised_learning_rounds = 10):
+	def run_dialog(self, images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths, num_dialog_rounds=10, supervised_learning_rounds = 10):
 		"""
 		Function that runs dialog between two bots for a variable number of rounds, with a subset of rounds with supervised training
 		================================
 		INPUTS:
-		images: The images for this batch of dialogs: shape (batch_size, image_embedding_size)
-		captions: The embedded captions for this batch of dialogs: shape (batch_size, max_caption_length, word_embedding_size) (PADDED)
-		dialog: The complete dialog associated with this batch of dialogs with questions and answers all padded
-		dialog_lengths: The true lengths of the unpadded questions and answers
+		images: float The embedded (VGG-16)images for this batch of dialogs: shape (batch_size, image_embedding_size)
+		captions: int The captions as indices for this batch of dialogs: shape (batch_size, max_caption_length) (PADDED)
+		true_questions : int The true questions for the entire dialog: (batch_size, num_dialog_rounds, max_question_length) (Not embedded)
+		true_question_lengths : int The lengths of the true questions for the entire dialog (batch_size, num_dialog_rounds)
+		true_answers : int The true answers for the entire dialog: (batch_size, num_dialog_rounds, max_answer_length) (Not embedded)
+		true_answer_lengths :int The lengths of the true answers for the entire dialog (batch_size, num_dialog_rounds)
 		num_dialog_rounds: int Number of rounds to run this dialog for
 		supervised_learning_rounds: int The number of supervised learning rounds
+		================================
+		OUTPUTS:
+		loss: float loss for the entire batch
 		"""
-		#Assumed that dialog has questions and answers as indices!
-		#Captions passed in as embeddings
-		#Images passed in as VGG representations
 		#Embedding lookup - padding (Add lengths)
 		#dialog has questions and answers as indices. Not embedded. But padded.
+		captions = self.embedding_lookup(captions)
 		Q_state = self.Qbot.encode_captions(captions, caption_lengths)
 		A_state = self.Abot.encode_images_captions(images, captions, caption_lengths)
 		A_fact = self.Abot.encode_facts(captions, caption_lengths)
@@ -67,10 +70,10 @@ class model():
 
 			else: ## Supervised training
 				## ACCESS TRUE QUESTIONS  AND ANSWERS FOR THIS ROUND OF DIALOG
-				questions = dialog.questions
-				answers = dialog.answers
-				true_question_lengths = dialog.question_lengths
-				true_answer_lengths = dialog.answer_lengths
+				questions = true_questions[:,i,:]
+				answers = true_answers[:,i,:]
+				true_question_lengths_round = true_question_lengths[:,i]
+				true_answer_lengths_round = true_answer_lengths[:,i]
 				#Generate questions based on current state
 				question_logits, question_lengths =  self.Qbot.get_questions(Q_state, supervised_training = True)
 				#Encode the true questions
@@ -80,7 +83,7 @@ class model():
 				# ABot Generates answers based on current state
 				answer_logits, answer_lengths = self.Abot.get_answers(A_state, supervised_training = True)
 				#Generate facts from true questions and answers
-				facts, fact_lengths = self.concatenate_q_a(questions, true_question_lengths, answers, true_answer_lengths)
+				facts, fact_lengths = self.concatenate_q_a(questions, true_question_lengths_round, answers, true_answer_lengths_round)
 				facts = self.embedding_lookup(facts)
 				#Update state histories using current facts
 				A_fact = self.Abot.encode_facts(facts, fact_lengths)
