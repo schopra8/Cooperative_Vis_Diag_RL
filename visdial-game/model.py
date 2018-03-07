@@ -10,6 +10,10 @@ class model():
 		self.config= config
 		self.Qbot = DeepQBot()
 		self.Abot = DeepABot()
+		self.embedding_matrix = tf.get_variable("word_embeddings", shape=[self.config.VOCAB_SIZE, self.config.EMBEDDING_SIZE])
+
+	def add_placeholders(self):
+		pass
 
 	def run_dialog(self, images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths, num_dialog_rounds=10, supervised_learning_rounds = 10):
 		"""
