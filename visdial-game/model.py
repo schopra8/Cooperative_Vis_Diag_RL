@@ -9,9 +9,7 @@ class model():
 		"""
 		self.config= config
 		self.embedding_matrix = tf.get_variable("word_embeddings", shape=[self.config.VOCAB_SIZE, self.config.EMBEDDING_SIZE])
-		self.add_placeholders()
-		self.add_loss_op()
-		self.add_update_op()
+		self.global_step = tf.Variable(0, name="global_step", trainable=False)
 		self.Qbot = DeepQBot(
 			self.config,
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
@@ -22,7 +20,10 @@ class model():
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
 			embedding_matrix
 		)
-		self.global_step = tf.Variable(0, name="global_step", trainable=False)
+		self.add_placeholders()
+		self.add_loss_op()
+		self.add_update_op()
+
 
 	def add_placeholders(self):
 		"""
@@ -44,7 +45,7 @@ class model():
 		optimizer = tf.train.AdamOptimizer(learning_rate = self.config.learning_rate)
 		grads, variables = optimizer.compute_gradients(self.loss)
 		clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
-		self.update_op = optimizer.apply_gradients(zip(clipped_grads, variables))
+		self.update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
 	
 	def add_loss_op(self):
 		self.loss = self.run_dialog()
@@ -150,12 +151,6 @@ class model():
 	def get_minibatches(self, batch_size=40):
 		pass
 
-	def get_returns(self, trajectories, predictions, labels, gamma):
-		""" Gets returns for a list of trajectories.
-			+1 Reward if guess == answer
-			-1 Otherwise
-		"""
-		pass
 
 	def train(self, sess, num_epochs = 400, batch_size=20):
 		curriculum = 0
@@ -167,7 +162,7 @@ class model():
 			if curriculum <0:
 				curriculum = 0
 			for batch in generate_minibatches(self.config.batch_size):
-				loss = train_on_batch(batch, supervised_learning_rounds = curriculum)
+				loss = self.train_on_batch(sess, batch, supervised_learning_rounds = curriculum)
 	
 	def train_on_batch(self, sess, batch, supervised_learning_rounds = 10):
 		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
@@ -180,11 +175,12 @@ class model():
 			self.true_answer_lengths: true_answer_lengths,
 			self.supervised_learning_rounds:supervised_learning_rounds
 		}
-		_, loss = sess.run(self.update_op, self.loss, feed_dict = feed)
+		_, loss = sess.run([self.update_op, self.loss], feed_dict = feed)
 		return loss
 
 	def evaluate(self, minibatch_generator, max_dialog_rounds):
-		pass
+		
+		#questions, answers, image guesses
 
 	def show_dialog(self, image, caption, answer):
 		pass
