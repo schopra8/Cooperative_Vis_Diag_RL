@@ -13,12 +13,12 @@ class model():
 		self.Qbot = DeepQBot(
 			self.config,
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
-			embedding_matrix
+			self.embedding_matrix
 		)
 		self.Abot = DeepQBot(
 			self.config,
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
-			embedding_matrix
+			self.embedding_matrix
 		)
 		self.add_placeholders()
 		self.add_loss_op()
