@@ -7,7 +7,7 @@ class AnswerDecoder(object):
 		Previous state: (batch_size, hidden_dimension)
 		answers: (batch_size, answer_length, indices)
 	"""
-	def __init__(self, hidden_dimension, start_token_embedding, end_token_idx, max_answer_length, vocabulary_size, embedding_lookup, scope):
+	def __init__(self, hidden_dimension, start_token_embedding, end_token_idx, max_answer_length, vocabulary_size, embedding_matrix, scope):
 		"""
 		Initialization function
 		====================
@@ -17,7 +17,7 @@ class AnswerDecoder(object):
 		end_token_idx: int of index referring to the end token within our vocabulary
 		max_answer_length : int - length of longest answers
 		vocabulary_size: int - size of vocabulary (including start and end tokens)
-		embedding_lookup: callable function which returns an embeddings tensor (batch_size, embedding_size) given a vector of indices into our vocabulary
+		embedding_matrix: embedding_matrix
 		scope: variable scope of decoder
 		====================
 		"""
@@ -26,7 +26,7 @@ class AnswerDecoder(object):
 		self.end_token_idx = end_token_idx
 		self.max_answer_length = max_answer_length
 		self.vocabulary_size = vocabulary_size
-		self.embedding_lookup = embedding_lookup
+		self.embedding_matrix = embedding_matrix
 		self.scope = scope
 		self.add_cells()
 
@@ -40,6 +40,9 @@ class AnswerDecoder(object):
 			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
 			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
 			self.vocab_logits_layer = Dense(self.vocabulary_size, activation=None)
+
+	def embedding_lookup(self, indices):
+		return tf.nn.embedding_lookup(self.embedding_matrix, indices)
 
 	def generate_answer(self, states, true_answers, true_answer_lengths, supervised_training=True):
 		"""

@@ -15,7 +15,7 @@ from models.abot import ABot
 class DeepABot():
     """Abstracts an A-Bot for answering questions about a photo
     """
-    def __init__(self, config, start_token_embedding, embedding_lookup):
+    def __init__(self, config, start_token_embedding, embedding_matrix):
         with tf.variable_scope("a_bot") as scope:
             self.config = config
             self.fact_encoder = FactEncoder(self.config.hidden_dims, scope)
@@ -29,7 +29,7 @@ class DeepABot():
                 end_token_idx=self.config.END_TOKEN_IDX,
                 max_answer_length=self.config.MAX_ANSWER_LENGTH,
                 vocabulary_size=self.config.VOCAB_SIZE,
-                embedding_lookup=embedding_lookup,
+                embedding_matrix=embedding_matrix,
                 scope
             )
             self.history_encoder = AHistoryEncoder(
@@ -107,7 +107,7 @@ class DeepABot():
 class DeepQBot():
     """Abstracts a Q-Bot for asking questions about a photo
     """
-    def __init__(self, config, start_token_embedding, embedding_lookup):
+    def __init__(self, config, start_token_embedding, embedding_matrix):
         with tf.variable_scope("q_bot") as scope:
             self.config = config
             self.fact_encoder = FactEncoder(self.config.hidden_dims, scope)
@@ -117,7 +117,7 @@ class DeepQBot():
                 end_token_idx=self.config.END_TOKEN_IDX,
                 max_question_length=self.config.MAX_QUESTION_LENGTH,
                 vocabulary_size=self.config.VOCAB_SIZE,
-                embedding_lookup=embedding_lookup,
+                embedding_matrix=embedding_matrix,
                 scope
             )
             self.history_encoder = QHistoryEncoder(
