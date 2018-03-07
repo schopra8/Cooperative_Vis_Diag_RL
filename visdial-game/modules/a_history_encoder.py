@@ -45,10 +45,10 @@ class AHistoryEncoder(object):
 		"""
         inputs = tf.concat([questions, images, current_facts], 1)
 		with tf.variable_scope(self.scope):
-			outputs, next_states = tf.nn.dynamic_rnn(
+			_, next_states = tf.nn.dynamic_rnn(
 				self.cell,
 				inputs,
 				initial_state=prev_states,
 				dtype=tf.float32,
 			)
-			return outputs, next_states
+			return next_states
