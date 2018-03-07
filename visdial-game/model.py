@@ -9,11 +9,9 @@ class model():
 		"""
 		self.config= config
 		self.embedding_matrix = tf.get_variable("word_embeddings", shape=[self.config.VOCAB_SIZE, self.config.EMBEDDING_SIZE])
-<<<<<<< HEAD
 		self.add_placeholders()
 		self.add_loss_op()
 		self.add_update_op()
-=======
 		self.Qbot = DeepQBot(
 			self.config,
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
@@ -24,7 +22,6 @@ class model():
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
 			# TODO: Insert lookup callable function here
 		)
->>>>>>> 51924598d4e5a24f0459acac6bf8c9b1b4188349
 
 	def add_placeholders(self):
 		"""
@@ -34,7 +31,7 @@ class model():
 		self.captions = tf.placeholder(tf.int32, shape = [None, self.config.MAX_CAPTION_LENGTH])
 		self.caption_lengths = tf.placeholder(tf.int32, shape = [None])
 		self.true_questions = tf.placeholder(tf.int32, shape = [None, self.config.number_of_dialog_rounds, self.config.MAX_QUESTION_LENGTH])
-		self.true_answers = tf.placeholder(tf.int32, shape = [None, , self.config.number_of_dialog_rounds, self.config.MAX_ANSWER_LENGTH])
+		self.true_answers = tf.placeholder(tf.int32, shape = [None, self.config.number_of_dialog_rounds, self.config.MAX_ANSWER_LENGTH])
 		self.true_question_lengths = tf.placeholder(tf.int32, shape = [None, self.config.number_of_dialog_rounds])
 		self.true_answer_lengths = tf.placeholder(tf.int32, shape = [None, self.config.number_of_dialog_rounds])
 		self.supervised_learning_rounds = tf.placeholder(tf.int32, shape = [])
@@ -173,21 +170,22 @@ class model():
 	
 	def train_on_batch(self, sess, batch, supervised_learning_rounds = 10):
 		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
-		feed = {self.images:images, self.captions:captions, self.true_questions:true_questions,
-			self.true_question_lengths:true_question_lengths, self.true_answers:true_answers, self.true_answer_lengths: true_answer_lengths
-			self.supervised_learning_rounds = supervised_learning_rounds}
-		
+		feed = {
+			self.images:images,
+			self.captions:captions,
+			self.true_questions:true_questions,
+			self.true_question_lengths:true_question_lengths,
+			self.true_answers:true_answers,
+			self.true_answer_lengths: true_answer_lengths
+			self.supervised_learning_rounds:supervised_learning_rounds
+		}
 		_, loss = sess.run(self.update_op, self.loss, feed_dict = feed)
-
 		return loss
-
-		
 
 	def evaluate(self, minibatch_generator, max_dialog_rounds):
 		pass
 
 	def show_dialog(self, image, caption, answer):
-
 		pass
 
 	def concatenate_q_a(self, questions, question_lengths, answers, answer_lengths):
