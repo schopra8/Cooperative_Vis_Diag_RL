@@ -248,7 +248,7 @@ class model():
 		for i, l in enumerate(sorted_img_indices_list):
 			sorted_gt_pos = tf.argmax(tf.cast(tf.equal(l, gt_indices[i]), dtype=tf.int32), axis=0)
 			pos_gt.append(sorted_gt_pos)
-		percentage_rank_gt = np.array(pos_gt) + 1 / validation_data_sz  # + 1 to account for 0 indexing
+		percentage_rank_gt = (np.array(pos_gt) + 1) / validation_data_sz  # + 1 to account for 0 indexing
 		return percentage_rank_gt
 
 	def show_dialog(self, image, caption, answer):
