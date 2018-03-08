@@ -44,7 +44,6 @@ class QHistoryEncoder(object):
 				self.cell,
 				current_facts,
 				initial_state=prev_states,
-				sequence_length=None, # TODO: Add this maybe?
 				dtype=tf.float32,
 			)
 			return outputs ,next_states
