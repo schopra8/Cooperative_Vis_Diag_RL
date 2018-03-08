@@ -68,11 +68,12 @@ class model():
 		OUTPUTS:
 		loss: float loss for the entire batch
 		"""
-		self.captions = self.embedding_lookup(self.embedding_matrix, self.captions)
+		self.captions = tf.nn.embedding_lookup(self.embedding_matrix, self.captions)
 		Q_state = self.Qbot.encode_captions(self.captions, self.caption_lengths)
 		A_state = self.Abot.encode_images_captions(self.images, self.captions, self.caption_lengths)
 		A_fact = self.Abot.encode_facts(self.captions, self.caption_lengths)
 		prev_image_guess = self.Qbot.generate_image_representations(Q_state)
+		image_loss = 0
 		loss = 0
 		generated_questions = []
 		generated_answers = []
@@ -105,14 +106,14 @@ class model():
 				image_guess = self.Qbot.generate_image_representations(Q_state)
 				generated_images.append(image_guess)
 				#Calculate loss for this round
-				reward = tf.reduce_sum(tf.square(prev_image_guess - self.images), axis = 1) - tf.reduce_sum(tf.square(image_guess - images), axis = 1)
+				rewards = tf.reduce_sum(tf.square(prev_image_guess - self.images), axis = 1) - tf.reduce_sum(tf.square(image_guess - self.images), axis = 1)
 				prev_image_guess = image_guess
 
 				#### CHANGE HERE FOR UPDATING ONLY SINGLE BOT
-				prob_questions = tf.argmax(tf.nn.softmax(question_logits, axis = 2), axis = 2)
-				prob_answers = tf.argmax(tf.nn.softmax(answer_logits, axis = 2), axis = 2)
+				prob_questions = tf.argmax(tf.nn.softmax(question_logits), axis = 2)
+				prob_answers = tf.argmax(tf.nn.softmax(answer_logits), axis = 2)
 				negative_log_prob_exchange = -tf.log(prob_questions)-tf.log(prob_answers)
-				loss += tf.reduce_mean(negative_log_prob_exhchange*rewards)
+				loss += tf.reduce_mean(negative_log_prob_exchange*rewards)
 
 			else: ## Supervised training
 				## ACCESS TRUE QUESTIONS  AND ANSWERS FOR THIS ROUND OF DIALOG
@@ -140,7 +141,7 @@ class model():
 				)
 				#Generate facts from true questions and answers
 				facts, fact_lengths = self.concatenate_q_a(questions, true_question_lengths_round, answers, true_answer_lengths_round)
-				facts = self.embedding_lookup(facts)
+				facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
 				A_fact = self.Abot.encode_facts(facts, fact_lengths)
 				Q_fact = self.Qbot.encode_facts(facts, fact_lengths)
 				#Update state histories using current facts
@@ -154,10 +155,8 @@ class model():
 				loss += dialog_loss + image_loss
 		return loss, generated_questions, generated_answers, generated_images
 
-
 	def get_minibatches(self, batch_size=40):
 		pass
-
 
 	def train(self, sess, num_epochs = 400, batch_size=20):
 		curriculum = 0
