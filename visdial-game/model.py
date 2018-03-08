@@ -169,7 +169,7 @@ class model():
 				curriculum = 0
 			for batch in generate_minibatches(self.config.batch_size):
 				loss = self.train_on_batch(sess, batch, supervised_learning_rounds = curriculum)
-			if i%self.config.eval_every == 0:
+			if i % self.config.eval_every == 0:
 				self.evaluate(sess,)
 	
 	def train_on_batch(self, sess, batch, supervised_learning_rounds = 10):
