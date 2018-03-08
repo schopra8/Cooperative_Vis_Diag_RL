@@ -202,26 +202,54 @@ class model():
 		loss, images, answers, questions = sess.run([self.loss, self.generated_images, self.generated_answers, self.generated_questions], feed_dict = feed)
 		return loss, images, answers, questions
 
-	def compute_mrr(self, preds, gt, images, round_num, epoch):
+	def compute_mrr(self, preds, gt_indices, images, round_num, epoch):
 		"""
+		NOTE: BATCH SIZE HAS TO BE SMALL ~10 - 15 for this to hold in memory.
  		At each round we generate predictions from Q Bot across our batch.
 		We then sort all the images in the validation set according to their distance to the
 		given prediction and find the ranking of the true input image.
 		===================================
 		INPUTS:
 		preds = float [batch_size, IMG_REP_DIM]
-		gt = float [batch_size, IMG_REP_DIM]
+		gt_indices = float [batch_size] (indices of the ground truth images)
 		images = float [VALIDATION_SIZE, IMG_REP_DIM]
 		===================================
 		OUTPUTS:
 		"""
 		validation_data_sz = tf.shape(images)[0]
 		batch_data_sz = tf.shape(preds)[0]
-		preds_expanded = tf.tile(tf.expand_dims(preds, axis=0), tf.constant([validation_data_sz, 1, 1])) # (Validation Data Size, Preds, Img Dimensions)
-		images_expanded = tf.tile(tf.expand_dims(images, axis=1), tf.constant([1, batch_data_sz, 1])) # (Validation Data Size, Preds, Img Dimensions)
-		# Compute L2 distances, collapse img dimensions dim.  Each column represents L2 distances between a predicted image and all other validaion images.
-		l2_distances = tf.squeeze(tf.sqrt(tf.reduce_sum(tf.square(preds_expanded - images_expanded), axis=2))) # (Validation Data Size, Preds)
+		
+		# Tile the predictions and images tensors to be of the same dimenions,
+		# namely (Validation Data Size, Preds, Img Dimensions)
+		preds_expanded = tf.tile(tf.expand_dims(preds, axis=0), tf.constant([validation_data_sz, 1, 1]))
+		images_expanded = tf.tile(tf.expand_dims(images, axis=1), tf.constant([1, batch_data_sz, 1]))
+		
+		# Compute L2 distances.
+		# Each column represents L2 distances between a predicted image and all val images.
+		# Dim: (Preds, Validation Data Size)
+		l2_distances = tf.transpose(tf.squeeze(tf.sqrt(tf.reduce_sum(tf.square(preds_expanded - images_expanded), axis=2)))) 
+		
+		# Sort the values in each row, i.e. sort all the similarity between all validation images
+		# and predicted image.
+		# Dim: (Preds, Validation Data Size)
+		_, sorted_img_indices = tf.nn.top_k(
+			tf.transpose(l2_distances), # (preds, validation data size)
+			k=validation_data_sz,
+			sorted=True,
+		)
 
+		# Unstack this matrix into a list of tensors
+		# Each tensor in the list provides the indices of the validation images, in order from
+		# farthest from the prediction, to closest to the prediction.
+		sorted_img_indices_list = tf.unstack(sorted_img_indices)
+
+		# Find the position of the image index corresponding to ground truth picture
+		pos_gt = []
+		for i, l in enumerate(sorted_img_indices_list):
+			sorted_gt_pos = tf.argmax(tf.cast(tf.equal(l, gt_indices[i]), dtype=tf.int32), axis=0)
+			pos_gt.append(sorted_gt_pos)
+		percentage_rank_gt = np.array(pos_gt) + 1 / validation_data_sz  # + 1 to account for 0 indexing
+		return percentage_rank_gt
 
 	def show_dialog(self, image, caption, answer):
 		pass
