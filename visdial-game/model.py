@@ -188,13 +188,12 @@ class model():
 		return loss
 
 	def evaluate(self, sess):
-		
 		for batch in generate_dev_minibatches(self.config.batch_size):
 			loss, images, answers, questions = self.eval_on_batch(sess, batch)
 			#GET MRR AND LOG STUFF
 
 	def eval_on_batch(self, sess, batch):
-		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
+		images, captions, _, _, _, _ = batch
 		feed = {
 			self.images:images,
 			self.captions:captions,
@@ -203,10 +202,29 @@ class model():
 		loss, images, answers, questions = sess.run([self.loss, self.generated_images, self.generated_answers, self.generated_questions], feed_dict = feed)
 		return loss, images, answers, questions
 
+	def compute_mrr(self, preds, gt, images, round_num, epoch):
+		"""
+ 		At each round we generate predictions from Q Bot across our batch.
+		We then sort all the images in the validation set according to their distance to the
+		given prediction and find the ranking of the true input image.
+		===================================
+		INPUTS:
+		preds = float [batch_size, IMG_REP_DIM]
+		gt = float [batch_size, IMG_REP_DIM]
+		images = float [VALIDATION_SIZE, IMG_REP_DIM]
+		===================================
+		OUTPUTS:
+		"""
+		validation_data_sz = tf.shape(images)[0]
+		batch_data_sz = tf.shape(preds)[0]
+		preds_expanded = tf.tile(tf.expand_dims(preds, axis=0), tf.constant([validation_data_sz, 1, 1])) # (Validation Data Size, Preds, Img Dimensions)
+		images_expanded = tf.tile(tf.expand_dims(images, axis=1), tf.constant([1, batch_data_sz, 1])) # (Validation Data Size, Preds, Img Dimensions)
+		# Compute L2 distances, collapse img dimensions dim.  Each column represents L2 distances between a predicted image and all other validaion images.
+		l2_distances = tf.squeeze(tf.sqrt(tf.reduce_sum(tf.square(preds_expanded - images_expanded), axis=2))) # (Validation Data Size, Preds)
+
+
 	def show_dialog(self, image, caption, answer):
 		pass
-
-
 
 	def concatenate_q_a(self, questions, question_lengths, answers, answer_lengths):
 		"""
