@@ -21,7 +21,7 @@ class model():
 			self.embedding_matrix
 		)
 		self.add_placeholders()
-		self.add_loss_op()
+		self.add_all_ops()
 		self.add_update_op()
 
 
@@ -47,8 +47,9 @@ class model():
 		clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
 		self.update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
 	
-	def add_loss_op(self):
-		self.loss = self.run_dialog()
+	def add_all_ops(self):
+		self.loss, self.generated_questions, self.generated_answers, self.generated_images = self.run_dialog()
+
 	
 	def run_dialog(self):
 		"""
@@ -169,6 +170,8 @@ class model():
 				curriculum = 0
 			for batch in generate_minibatches(self.config.batch_size):
 				loss = self.train_on_batch(sess, batch, supervised_learning_rounds = curriculum)
+			if i%self.config.eval_every == 0:
+				self.evaluate(sess,)
 	
 	def train_on_batch(self, sess, batch, supervised_learning_rounds = 10):
 		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
@@ -184,11 +187,21 @@ class model():
 		_, loss = sess.run([self.update_op, self.loss], feed_dict = feed)
 		return loss
 
-	def evaluate(self):
+	def evaluate(self, sess):
 		
-		#questions, answers, image guesses
+		for batch in generate_dev_minibatches(self.config.batch_size):
+			loss, images, answers, questions = self.eval_on_batch(sess, batch)
+			#GET MRR AND LOG STUFF
 
-
+	def eval_on_batch(self, sess, batch):
+		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
+		feed = {
+			self.images:images,
+			self.captions:captions,
+			self.supervised_learning_rounds:0
+		}
+		loss, images, answers, questions = sess.run([self.loss, self.generated_images, self.generated_answers, self.generated_questions], feed_dict = feed)
+		return loss, images, answers, questions
 
 	def show_dialog(self, image, caption, answer):
 		pass
