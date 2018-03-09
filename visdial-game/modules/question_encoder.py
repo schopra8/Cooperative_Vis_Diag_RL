@@ -24,9 +24,9 @@ class QuestionEncoder(object):
     Builds the graph to take in the questions and ouput embeddings for each question.
     ===================================
     """
-    with tf.varible_scope(self.scope):
+    with tf.variable_scope(self.scope):
             # Stack RNN Cells: input -> basic rnn cell -> basic lstm cell -> output
-      cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
+      cells = [tf.contrib.rnn.GRUCell(self.hidden_dimension)]
       self.cell = tf.contrib.rnn.MultiRNNCell(cells)
     
   def encode_questions(self, questions):
@@ -36,7 +36,7 @@ class QuestionEncoder(object):
     INPUTS:
     questions: float - (batch_size, max_sequence_length, vocabulary_size)
     """
-    with tf.varible_scope(self.scope):
+    with tf.variable_scope(self.scope):
       batch_size = tf.shape(questions)[0]
       encoded_questions, _ = tf.nn.dynamic_rnn(
         self.cell,

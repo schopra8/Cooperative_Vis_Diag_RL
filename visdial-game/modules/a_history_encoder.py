@@ -27,7 +27,7 @@ class AHistoryEncoder(object):
         ===================================
         """
         with tf.variable_scope(self.scope):
-            cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
+            cells = [tf.contrib.rnn.GRUCell(self.hidden_dimension)]
             self.cell = tf.contrib.rnn.MultiRNNCell(cells)
 
     def convert_images(self, images):

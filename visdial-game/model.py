@@ -9,7 +9,7 @@ class model():
     def __init__(self, config):
         """ Sets up the configuration parameters, creates Q Bot + A Bot.
         """
-        self.config= config
+        self.config = config
         self.embedding_matrix = tf.get_variable("word_embeddings", shape=[self.config.VOCAB_SIZE, self.config.EMBEDDING_SIZE])
         self.global_step = tf.Variable(0, name="global_step", trainable=False)
         self.Qbot = DeepQBot(

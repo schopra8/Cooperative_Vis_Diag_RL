@@ -18,7 +18,7 @@ class DeepABot():
     def __init__(self, config, start_token_embedding, embedding_matrix):
         with tf.variable_scope("a_bot") as scope:
             self.config = config
-            self.fact_encoder = FactEncoder(self.config.hidden_dims, scope)
+            self.fact_encoder = FactEncoder(self.config.A.hidden_dims, scope)
             self.question_encoder = QuestionEncoder(
                 self.config.A.hidden_dims,
                 scope
@@ -134,7 +134,7 @@ class DeepQBot():
         Returns:
             captions: encoded captions  
         """
-        fact_captions = self.fact_encoder.generate_next_fact(captions, caption_lengths)
+        fact_captions = self.fact_encoder.generate_fact(captions, caption_lengths)
         state_captions = self.history_encoder.generate_next_state(fact_captions)
         return state_captions
 
@@ -147,7 +147,7 @@ class DeepQBot():
         Returns:
             facts: encoded facts that combine the question and answer
         """
-        return self.fact_encoder.generate_next_fact(inputs, input_lengths)
+        return self.fact_encoder.generate_fact(inputs, input_lengths)
 
     def encode_state_histories(self, recent_facts, prev_states=None):
         """Encodes states as a combination of facts for a given round (State/History Encoder)
