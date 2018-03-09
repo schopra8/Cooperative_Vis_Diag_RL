@@ -24,7 +24,6 @@ class config():
         gamma = 1
         hidden_dims = 512
 
-##Output files
-    output_dir = "./results"
-    DATA_DIR = "../synthetic_data/"
-    DATA_FILE = "synthetic_data.csv"
+    class FLAGS():
+        train_dir = ''
+

@@ -15,7 +15,7 @@ class model():
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
 			self.embedding_matrix
 		)
-		self.Abot = DeepQBot(
+		self.Abot = DeepABot(
 			self.config,
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
 			self.embedding_matrix
@@ -23,10 +23,9 @@ class model():
 		self.add_placeholders()
 		self.add_all_ops()
 		self.add_update_op()
-		self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.config.keep)
-        self.bestmodel_saver = tf.train.Saver(tf.global_variables(), max_to_keep=1)
+        self.best_model_saver = tf.train.Saver(tf.global_variables(), max_to_keep=1)
         self.summaries = tf.summary.merge_all()
-
+		self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.config.keep)
 
 	def add_placeholders(self):
 		"""
@@ -95,7 +94,7 @@ class model():
 				#A-bot encodes questions
 				encoded_questions = self.Abot.encode_questions(questions)
 				#A-bot updates state
-				A_state = self.Abot.encode_state_histories(self.images, self.captions, encoded_questions, A_fact, A_state)
+				A_state = self.Abot.encode_state_histories(A_fact, self.images, encoded_questions, A_state)
 				#Abot generates answer logits
 				answer_logits, answer_lengths = self.Abot.get_answers(A_state, supervised_training=False)
 				#Generate facts for that round of dialog
@@ -138,7 +137,7 @@ class model():
 				#Encode the true questions
 				encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, questions))
 				#Update A state based on true question
-				A_state = self.Abot.encode_state_histories(self.images, self.captions, encoded_questions, A_fact, A_state)
+				A_state = self.Abot.encode_state_histories(A_fact, self.images, encoded_questions, A_state)
 				# ABot Generates answers based on current state
 				answer_logits, answer_lengths = self.Abot.get_answers(
 					A_state,
@@ -166,7 +165,7 @@ class model():
 		pass
 
 	def train(self, sess, num_epochs = 400, batch_size=20):
-		summary_writer = tf.summary.FileWriter(self.FLAGS.train_dir, session.graph)
+		summary_writer = tf.summary.FileWriter(self.config.FLAGS.train_dir, sess.graph)
 
 		curriculum = 0
 		for i in xrange(num_epochs):
@@ -179,9 +178,9 @@ class model():
 			for batch in generate_minibatches(self.config.batch_size):
 				loss = self.train_on_batch(sess, batch, summary_writer, supervised_learning_rounds = curriculum)
 				if self.global_step % self.config.eval_every == 0:
-					dev_loss, dev_MRR = self.evaluate(sess)
-					self.write_summary(dev_loss, "dev/loss_total", summary_writer, global_step)
-					self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, global_step)
+					dev_loss, dev_MRR = self.evaluate(sess, i, i == 14)
+					self.write_summary(dev_loss, "dev/loss_total", summary_writer, self.global_step)
+					self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, self.global_step)
 	
 	def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
 		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
