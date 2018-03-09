@@ -20,11 +20,11 @@ class DeepABot():
             self.config = config
             self.fact_encoder = FactEncoder(self.config.hidden_dims, scope)
             self.question_encoder = QuestionEncoder(
-                self.config.hidden_dims,
+                self.config.A.hidden_dims,
                 scope
             )
             self.answer_decoder = AnswerDecoder(
-                hidden_dimension=self.config.hidden_dims,
+                hidden_dimension=self.config.A.hidden_dims,
                 start_token_embedding=start_token_embedding,
                 end_token_idx=self.config.END_TOKEN_IDX,
                 max_answer_length=self.config.MAX_ANSWER_LENGTH,
@@ -33,7 +33,7 @@ class DeepABot():
                 scope=scope,
             )
             self.history_encoder = AHistoryEncoder(
-                self.config.hidden_dims, self.config.IMG_REP_DIM,
+                self.config.A.hidden_dims, self.config.IMG_REP_DIM,
                 scope
             )
     def encode_images_captions(self, captions, images, caption_lengths):
@@ -110,9 +110,9 @@ class DeepQBot():
     def __init__(self, config, start_token_embedding, embedding_matrix):
         with tf.variable_scope("q_bot") as scope:
             self.config = config
-            self.fact_encoder = FactEncoder(self.config.hidden_dims, scope)
+            self.fact_encoder = FactEncoder(self.config.Q.hidden_dims, scope)
             self.question_decoder = QuestionDecoder(
-                hidden_dimension=self.config.hidden_dims,
+                hidden_dimension=self.config.Q.hidden_dims,
                 start_token_embedding=start_token_embedding,
                 end_token_idx=self.config.END_TOKEN_IDX,
                 max_question_length=self.config.MAX_QUESTION_LENGTH,
@@ -121,7 +121,7 @@ class DeepQBot():
                 scope=scope,
             )
             self.history_encoder = QHistoryEncoder(
-                self.config.hidden_dims,
+                self.config.Q.hidden_dims,
                 scope
             )
             self.feature_regressor = FeatureRegression(self.config.IMG_REP_DIM, scope)

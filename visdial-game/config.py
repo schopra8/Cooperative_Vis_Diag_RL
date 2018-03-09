@@ -14,7 +14,11 @@ class Config():
     batch_size = 40
     number_of_dialog_rounds = 10
     max_gradient_norm = 5
-
+    model_save_directory = "../results/"
+    best_save_directory = "../results/best"
+    eval_every = 1000
+    save_every = 1000
+    
     class Q():
         gamma = 1
         hidden_dims = 512
