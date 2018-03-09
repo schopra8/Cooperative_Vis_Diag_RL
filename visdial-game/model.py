@@ -23,6 +23,9 @@ class model():
 		self.add_placeholders()
 		self.add_all_ops()
 		self.add_update_op()
+		self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.config.keep)
+        self.bestmodel_saver = tf.train.Saver(tf.global_variables(), max_to_keep=1)
+        self.summaries = tf.summary.merge_all()
 
 
 	def add_placeholders(self):
@@ -48,7 +51,9 @@ class model():
 		self.update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
 	
 	def add_all_ops(self):
-		self.loss, self.generated_questions, self.generated_answers, self.generated_images = self.run_dialog()
+		self.loss, self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards = self.run_dialog()
+		tf.summary.scalar('loss_start', self.loss)
+		tf.summary.scalar('batch_rewards', np.mean(np.asarray(self.batch_rewards)))
 
 	
 	def run_dialog(self):
@@ -78,6 +83,7 @@ class model():
 		generated_questions = []
 		generated_answers = []
 		generated_images = []
+		batch_rewards = []
 		for i in xrange(self.config.num_dialog_rounds):
 			x = tf.constant(i)
 			if tf.greater_equal(x, self.supervised_learning_rounds): ## RL training
@@ -107,6 +113,7 @@ class model():
 				generated_images.append(image_guess)
 				#Calculate loss for this round
 				rewards = tf.reduce_sum(tf.square(prev_image_guess - self.images), axis = 1) - tf.reduce_sum(tf.square(image_guess - self.images), axis = 1)
+				batch_rewards.append(tf.reduce_mean(rewards))
 				prev_image_guess = image_guess
 
 				#### CHANGE HERE FOR UPDATING ONLY SINGLE BOT
@@ -153,12 +160,14 @@ class model():
 				dialog_loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits = answer_logits, labels = answers)
 				image_loss += tf.nn.l2_loss(image_guess - self.images)
 				loss += dialog_loss + image_loss
-		return loss, generated_questions, generated_answers, generated_images
+		return loss, generated_questions, generated_answers, generated_images, batch_rewards
 
 	def get_minibatches(self, batch_size=40):
 		pass
 
 	def train(self, sess, num_epochs = 400, batch_size=20):
+		summary_writer = tf.summary.FileWriter(self.FLAGS.train_dir, session.graph)
+
 		curriculum = 0
 		for i in xrange(num_epochs):
 			if i<15:
@@ -168,11 +177,13 @@ class model():
 			if curriculum <0:
 				curriculum = 0
 			for batch in generate_minibatches(self.config.batch_size):
-				loss = self.train_on_batch(sess, batch, supervised_learning_rounds = curriculum)
-			if i % self.config.eval_every == 0:
-				self.evaluate(sess,)
+				loss = self.train_on_batch(sess, batch, summary_writer, supervised_learning_rounds = curriculum)
+			if self.global_step % self.config.eval_every == 0:
+				self.evaluate(sess)
+				self.write_summary(dev_loss, "dev/loss", summary_writer, global_step)
+				self.write_summary(MRR, "dev/MRR", summary_writer, global_step)
 	
-	def train_on_batch(self, sess, batch, supervised_learning_rounds = 10):
+	def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
 		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
 		feed = {
 			self.images:images,
@@ -183,12 +194,19 @@ class model():
 			self.true_answer_lengths: true_answer_lengths,
 			self.supervised_learning_rounds:supervised_learning_rounds
 		}
-		_, loss = sess.run([self.update_op, self.loss], feed_dict = feed)
-		return loss
-
+		summary, _, global_step, loss, rewards = sess.run([self.summaries, self.update_op, self.global_step, self.loss, self.batch_rewards], feed_dict = feed)
+		summary_writer.add_summary(summary, global_step)
+		return loss, rewards
+	
+	def write_summary(value, tag, summary_writer, global_step):
+    """Write a single summary value to tensorboard"""
+    	summary = tf.Summary()
+    	summary.value.add(tag=tag, simple_value=value)
+    	summary_writer.add_summary(summary, global_step)
+	
 	def evaluate(self, sess):
 		for batch in generate_dev_minibatches(self.config.batch_size):
-			loss, images, answers, questions = self.eval_on_batch(sess, batch)
+			loss, images, answers, questions, rewards = self.eval_on_batch(sess, batch)
 			#GET MRR AND LOG STUFF
 
 	def eval_on_batch(self, sess, batch):
@@ -198,8 +216,9 @@ class model():
 			self.captions:captions,
 			self.supervised_learning_rounds:0
 		}
-		loss, images, answers, questions = sess.run([self.loss, self.generated_images, self.generated_answers, self.generated_questions], feed_dict = feed)
-		return loss, images, answers, questions
+		summaries, loss, images, answers, questions = sess.run([self.summaries, self.loss, self.generated_images, self.generated_answers, self.generated_questions, self.batch_rewards], feed_dict = feed)
+		
+		return loss, images, answers, questions, rewards
 
 	def compute_mrr(self, preds, gt_indices, images, round_num, epoch):
 		"""
