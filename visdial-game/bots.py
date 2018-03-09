@@ -124,7 +124,7 @@ class DeepQBot():
                 self.config.Q.hidden_dims,
                 scope
             )
-            self.feature_regressor = FeatureRegression(self.config.IMG_REP_DIM, scope)
+            self.feature_regressor = FeatureRegressor(self.config.IMG_REP_DIM, scope)
 
     def encode_captions(self, captions, caption_lengths):
         """Encodes captions.
