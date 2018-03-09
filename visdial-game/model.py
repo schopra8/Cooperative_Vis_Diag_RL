@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from dataloader import DataLoader
 from bots import DeepQBot
 from bots import DeepABot
 
@@ -27,6 +28,10 @@ class model():
         self.best_model_saver = tf.train.Saver(tf.global_variables(), max_to_keep=1)
         self.summaries = tf.summary.merge_all()
         self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.config.keep)
+
+        # files are expected to be in ../data
+        self.dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
+                            'data_img.h5', ['train'])
 
     def add_placeholders(self):
         """
@@ -178,7 +183,8 @@ class model():
                 curriculum -= 1
             if curriculum <0:
                 curriculum = 0
-            for batch in generate_minibatches(self.config.batch_size):
+            batch_generator = self.dataloader.getTrainBatch(self.config.batch_size)
+            for batch in batch_generator:
                 loss = self.train_on_batch(sess, batch, summary_writer, supervised_learning_rounds = curriculum)
                 if self.global_step % self.config.eval_every == 0:
                     dev_loss, dev_MRR = self.evaluate(sess)
@@ -218,8 +224,12 @@ class model():
         summary_writer.add_summary(summary, global_step)
     
     def evaluate(self, sess, epoch, compute_MRR = False):
+        # files are expected to be in ../data
+        eval_dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
+                            'data_img.h5', ['val'])
         dev_loss = 0
-        for batch in generate_dev_minibatches(self.config.batch_size):
+        dev_batch_generator = eval_dataloader.getEvalBatch(self.config.batch_size)
+        for batch in dev_batch_generator:
             true_images, _, _, _, _, _, gt_indices = batch
             loss, preds, gen_answers, gen_questions = self.eval_on_batch(sess, batch)
             dev_loss += loss
