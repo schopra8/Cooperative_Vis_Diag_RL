@@ -14,7 +14,7 @@ class Config():
     IMG_REP_DIM = 300
     EMBEDDING_SIZE = 300
     batch_size = 40
-    number_of_dialog_rounds = 10
+    num_dialog_rounds = 10
     max_gradient_norm = 5
     model_save_directory = "../visdial_results/"
     best_save_directory = "../visdial_results/best"
