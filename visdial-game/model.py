@@ -178,13 +178,14 @@ class model():
 				curriculum = 0
 			for batch in generate_minibatches(self.config.batch_size):
 				loss = self.train_on_batch(sess, batch, summary_writer, supervised_learning_rounds = curriculum)
-			if self.global_step % self.config.eval_every == 0:
-				self.evaluate(sess)
-				self.write_summary(dev_loss, "dev/loss", summary_writer, global_step)
-				self.write_summary(MRR, "dev/MRR", summary_writer, global_step)
+				if self.global_step % self.config.eval_every == 0:
+					dev_loss, dev_MRR = self.evaluate(sess)
+					self.write_summary(dev_loss, "dev/loss_total", summary_writer, global_step)
+					self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, global_step)
 	
 	def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
 		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
+
 		feed = {
 			self.images:images,
 			self.captions:captions,
@@ -198,16 +199,24 @@ class model():
 		summary_writer.add_summary(summary, global_step)
 		return loss, rewards
 	
-	def write_summary(value, tag, summary_writer, global_step):
+	def write_summary(self, value, tag, summary_writer, global_step):
     """Write a single summary value to tensorboard"""
     	summary = tf.Summary()
     	summary.value.add(tag=tag, simple_value=value)
     	summary_writer.add_summary(summary, global_step)
 	
-	def evaluate(self, sess):
+	def evaluate(self, sess, epoch, compute_MRR = False):
+		dev_loss = 0
 		for batch in generate_dev_minibatches(self.config.batch_size):
-			loss, images, answers, questions, rewards = self.eval_on_batch(sess, batch)
-			#GET MRR AND LOG STUFF
+			true_images, _, _, _, _, _, gt_indices = batch
+			loss, preds, gen_answers, gen_questions = self.eval_on_batch(sess, batch)
+			dev_loss += loss
+			MRR = np.zeros([self.config.number_of_dialog_rounds])
+			if compute_MRR:
+				for round_number, p in enumerate(preds):
+					percentage_rank_gt = self.compute_mrr(p, gt_indices, true_images, round_number, epoch)
+					MRR[round_number] += tf.reduce_mean(percentage_rank_gt)
+		return dev_loss, MRR
 
 	def eval_on_batch(self, sess, batch):
 		images, captions, _, _, _, _ = batch
