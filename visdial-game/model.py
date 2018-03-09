@@ -15,7 +15,7 @@ class model():
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
 			self.embedding_matrix
 		)
-		self.Abot = DeepQBot(
+		self.Abot = DeepABot(
 			self.config,
 			tf.nn.embedding_lookup(self.embedding_matrix, ids=tf.Variable([self.config.START_TOKEN_IDX])),
 			self.embedding_matrix
@@ -23,7 +23,9 @@ class model():
 		self.add_placeholders()
 		self.add_all_ops()
 		self.add_update_op()
-
+        self.best_model_saver = tf.train.Saver(tf.global_variables(), max_to_keep=1)
+        self.summaries = tf.summary.merge_all()
+		self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.config.keep)
 
 	def add_placeholders(self):
 		"""
@@ -48,7 +50,9 @@ class model():
 		self.update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
 	
 	def add_all_ops(self):
-		self.loss, self.generated_questions, self.generated_answers, self.generated_images = self.run_dialog()
+		self.loss, self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards = self.run_dialog()
+		tf.summary.scalar('loss_start', self.loss)
+		tf.summary.scalar('batch_rewards', np.mean(np.asarray(self.batch_rewards)))
 
 	
 	def run_dialog(self):
@@ -68,15 +72,17 @@ class model():
 		OUTPUTS:
 		loss: float loss for the entire batch
 		"""
-		self.captions = self.embedding_lookup(self.embedding_matrix, self.captions)
+		self.captions = tf.nn.embedding_lookup(self.embedding_matrix, self.captions)
 		Q_state = self.Qbot.encode_captions(self.captions, self.caption_lengths)
-		A_state = self.Abot.encode_images_captions(self.images, self.captions, self.caption_lengths)
+		A_state = self.Abot.encode_images_captions(self.captions, self.images, self.caption_lengths)
 		A_fact = self.Abot.encode_facts(self.captions, self.caption_lengths)
 		prev_image_guess = self.Qbot.generate_image_representations(Q_state)
+		image_loss = 0
 		loss = 0
 		generated_questions = []
 		generated_answers = []
 		generated_images = []
+		batch_rewards = []
 		for i in xrange(self.config.num_dialog_rounds):
 			x = tf.constant(i)
 			if tf.greater_equal(x, self.supervised_learning_rounds): ## RL training
@@ -88,7 +94,7 @@ class model():
 				#A-bot encodes questions
 				encoded_questions = self.Abot.encode_questions(questions)
 				#A-bot updates state
-				A_state = self.Abot.encode_state_histories(self.images, self.captions, encoded_questions, A_fact, A_state)
+				A_state = self.Abot.encode_state_histories(A_fact, self.images, encoded_questions, A_state)
 				#Abot generates answer logits
 				answer_logits, answer_lengths = self.Abot.get_answers(A_state, supervised_training=False)
 				#Generate facts for that round of dialog
@@ -105,14 +111,15 @@ class model():
 				image_guess = self.Qbot.generate_image_representations(Q_state)
 				generated_images.append(image_guess)
 				#Calculate loss for this round
-				reward = tf.reduce_sum(tf.square(prev_image_guess - self.images), axis = 1) - tf.reduce_sum(tf.square(image_guess - images), axis = 1)
+				rewards = tf.reduce_sum(tf.square(prev_image_guess - self.images), axis = 1) - tf.reduce_sum(tf.square(image_guess - self.images), axis = 1)
+				batch_rewards.append(tf.reduce_mean(rewards))
 				prev_image_guess = image_guess
 
 				#### CHANGE HERE FOR UPDATING ONLY SINGLE BOT
-				prob_questions = tf.argmax(tf.nn.softmax(question_logits, axis = 2), axis = 2)
-				prob_answers = tf.argmax(tf.nn.softmax(answer_logits, axis = 2), axis = 2)
+				prob_questions = tf.argmax(tf.nn.softmax(question_logits), axis = 2)
+				prob_answers = tf.argmax(tf.nn.softmax(answer_logits), axis = 2)
 				negative_log_prob_exchange = -tf.log(prob_questions)-tf.log(prob_answers)
-				loss += tf.reduce_mean(negative_log_prob_exhchange*rewards)
+				loss += tf.reduce_mean(negative_log_prob_exchange*rewards)
 
 			else: ## Supervised training
 				## ACCESS TRUE QUESTIONS  AND ANSWERS FOR THIS ROUND OF DIALOG
@@ -130,7 +137,7 @@ class model():
 				#Encode the true questions
 				encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, questions))
 				#Update A state based on true question
-				A_state = self.Abot.encode_state_histories(self.images, self.captions, encoded_questions, A_fact, A_state)
+				A_state = self.Abot.encode_state_histories(A_fact, self.images, encoded_questions, A_state)
 				# ABot Generates answers based on current state
 				answer_logits, answer_lengths = self.Abot.get_answers(
 					A_state,
@@ -140,7 +147,7 @@ class model():
 				)
 				#Generate facts from true questions and answers
 				facts, fact_lengths = self.concatenate_q_a(questions, true_question_lengths_round, answers, true_answer_lengths_round)
-				facts = self.embedding_lookup(facts)
+				facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
 				A_fact = self.Abot.encode_facts(facts, fact_lengths)
 				Q_fact = self.Qbot.encode_facts(facts, fact_lengths)
 				#Update state histories using current facts
@@ -152,14 +159,14 @@ class model():
 				dialog_loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits = answer_logits, labels = answers)
 				image_loss += tf.nn.l2_loss(image_guess - self.images)
 				loss += dialog_loss + image_loss
-		return loss, generated_questions, generated_answers, generated_images
-
+		return loss, generated_questions, generated_answers, generated_images, batch_rewards
 
 	def get_minibatches(self, batch_size=40):
 		pass
 
-
 	def train(self, sess, num_epochs = 400, batch_size=20):
+		summary_writer = tf.summary.FileWriter(self.FLAGS.train_dir, session.graph)
+		best_dev_loss = float('Inf')
 		curriculum = 0
 		for i in xrange(num_epochs):
 			if i<15:
@@ -169,62 +176,128 @@ class model():
 			if curriculum <0:
 				curriculum = 0
 			for batch in generate_minibatches(self.config.batch_size):
-				loss = self.train_on_batch(sess, batch, supervised_learning_rounds = curriculum)
-			if i%self.config.eval_every == 0:
-				self.evaluate(sess,)
+				loss = self.train_on_batch(sess, batch, summary_writer, supervised_learning_rounds = curriculum)
+				if self.global_step % self.config.eval_every == 0:
+					dev_loss, dev_MRR = self.evaluate(sess)
+					self.write_summary(dev_loss, "dev/loss_total", summary_writer, global_step)
+					self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, global_step)
+					if dev_loss < best_dev_loss:
+						best_dev_loss = dev_loss
+						self.bestmodel_saver.save(sess, self.config.best_save_directory, global_step=global_step)
+				
+				if global_step % self.config.save_every ==0:
+					self.saver.save(sess, self.config.model_save_directory, global_step=global_step)
+
 	
-	def train_on_batch(self, sess, batch, supervised_learning_rounds = 10):
-		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
+	def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
+		images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
+
 		feed = {
 			self.images:images,
 			self.captions:captions,
+			self.caption_lengths:caption_lengths,
 			self.true_questions:true_questions,
 			self.true_question_lengths:true_question_lengths,
 			self.true_answers:true_answers,
 			self.true_answer_lengths: true_answer_lengths,
 			self.supervised_learning_rounds:supervised_learning_rounds
 		}
-		_, loss = sess.run([self.update_op, self.loss], feed_dict = feed)
-		return loss
-
-	def evaluate(self, sess):
+		summary, _, global_step, loss, rewards = sess.run([self.summaries, self.update_op, self.global_step, self.loss, self.batch_rewards], feed_dict = feed)
+		summary_writer.add_summary(summary, global_step)
+		return loss, rewards
+	
+	def write_summary(self, value, tag, summary_writer, global_step):
+		""" Write a single summary value to tensorboard
+		"""
+    	summary = tf.Summary()
+    	summary.value.add(tag=tag, simple_value=value)
+    	summary_writer.add_summary(summary, global_step)
+	
+	def evaluate(self, sess, epoch, compute_MRR = False):
+		dev_loss = 0
 		for batch in generate_dev_minibatches(self.config.batch_size):
-			loss, images, answers, questions = self.eval_on_batch(sess, batch)
-			#GET MRR AND LOG STUFF
+			true_images, _, _, _, _, _, gt_indices = batch
+			loss, preds, gen_answers, gen_questions = self.eval_on_batch(sess, batch)
+			dev_loss += loss
+			MRR = np.zeros([self.config.number_of_dialog_rounds])
+			if compute_MRR:
+				for round_number, p in enumerate(preds):
+					percentage_rank_gt = self.compute_mrr(p, gt_indices, true_images, round_number, epoch)
+					MRR[round_number] += tf.reduce_mean(percentage_rank_gt)
+		return dev_loss, MRR
 
 	def eval_on_batch(self, sess, batch):
-		images, captions, _, _, _, _ = batch
+		images, captions, caption_lengths, _, _, _, _ = batch
 		feed = {
 			self.images:images,
 			self.captions:captions,
+			self.caption_lengths: caption_lengths
 			self.supervised_learning_rounds:0
 		}
-		loss, images, answers, questions = sess.run([self.loss, self.generated_images, self.generated_answers, self.generated_questions], feed_dict = feed)
-		return loss, images, answers, questions
+		loss, images, answers, questions, rewards = sess.run([self.loss, self.generated_images, self.generated_answers, self.generated_questions, self.batch_rewards], feed_dict = feed)
+		
+		return loss, images, answers, questions, rewards
 
-	def compute_mrr(self, preds, gt, images, round_num, epoch):
+	def compute_mrr(self, preds, gt_indices, images, round_num, epoch):
 		"""
+		NOTE: BATCH SIZE HAS TO BE SMALL ~10 - 15 for this to hold in memory.
  		At each round we generate predictions from Q Bot across our batch.
 		We then sort all the images in the validation set according to their distance to the
 		given prediction and find the ranking of the true input image.
 		===================================
 		INPUTS:
 		preds = float [batch_size, IMG_REP_DIM]
-		gt = float [batch_size, IMG_REP_DIM]
+		gt_indices = float [batch_size] (indices of the ground truth images)
 		images = float [VALIDATION_SIZE, IMG_REP_DIM]
 		===================================
 		OUTPUTS:
 		"""
 		validation_data_sz = tf.shape(images)[0]
 		batch_data_sz = tf.shape(preds)[0]
-		preds_expanded = tf.tile(tf.expand_dims(preds, axis=0), tf.constant([validation_data_sz, 1, 1])) # (Validation Data Size, Preds, Img Dimensions)
-		images_expanded = tf.tile(tf.expand_dims(images, axis=1), tf.constant([1, batch_data_sz, 1])) # (Validation Data Size, Preds, Img Dimensions)
-		# Compute L2 distances, collapse img dimensions dim.  Each column represents L2 distances between a predicted image and all other validaion images.
-		l2_distances = tf.squeeze(tf.sqrt(tf.reduce_sum(tf.square(preds_expanded - images_expanded), axis=2))) # (Validation Data Size, Preds)
+		
+		# Tile the predictions and images tensors to be of the same dimenions,
+		# namely (Validation Data Size, Preds, Img Dimensions)
+		preds_expanded = tf.tile(tf.expand_dims(preds, axis=0), tf.constant([validation_data_sz, 1, 1]))
+		images_expanded = tf.tile(tf.expand_dims(images, axis=1), tf.constant([1, batch_data_sz, 1]))
+		
+		# Compute L2 distances.
+		# Each column represents L2 distances between a predicted image and all val images.
+		# Dim: (Preds, Validation Data Size)
+		l2_distances = tf.transpose(tf.squeeze(tf.sqrt(tf.reduce_sum(tf.square(preds_expanded - images_expanded), axis=2)))) 
+		
+		# Sort the values in each row, i.e. sort all the similarity between all validation images
+		# and predicted image.
+		# Dim: (Preds, Validation Data Size)
+		_, sorted_img_indices = tf.nn.top_k(
+			tf.transpose(l2_distances), # (preds, validation data size)
+			k=validation_data_sz,
+			sorted=True,
+		)
 
+		# Unstack this matrix into a list of tensors
+		# Each tensor in the list provides the indices of the validation images, in order from
+		# farthest from the prediction, to closest to the prediction.
+		sorted_img_indices_list = tf.unstack(sorted_img_indices)
 
-	def show_dialog(self, image, caption, answer):
-		pass
+		# Find the position of the image index corresponding to ground truth picture
+		pos_gt = []
+		for i, l in enumerate(sorted_img_indices_list):
+			sorted_gt_pos = tf.argmax(tf.cast(tf.equal(l, gt_indices[i]), dtype=tf.int32), axis=0)
+			pos_gt.append(sorted_gt_pos)
+		percentage_rank_gt = (np.array(pos_gt) + 1) / validation_data_sz  # + 1 to account for 0 indexing
+		return percentage_rank_gt
+
+	def show_dialog(self, sess, image, caption, answer):
+		feed = {
+			self.images:images,
+			self.captions:captions,
+			self.caption_lengths: caption_lengths
+			self.supervised_learning_rounds:0
+		}
+		images, answers, questions = sess.run([self.generated_images, self.generated_answers, self.generated_questions], feed_dict = feed)
+		
+		return loss, images, answers, questions, rewards
+
 
 	def concatenate_q_a(self, questions, question_lengths, answers, answer_lengths):
 		"""

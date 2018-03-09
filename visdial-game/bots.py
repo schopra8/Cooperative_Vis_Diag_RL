@@ -3,7 +3,7 @@ import os, sys
 from modules.a_history_encoder import AHistoryEncoder
 from modules.answer_decoder import AnswerDecoder
 from modules.fact_encoder import FactEncoder
-from modules.feature_regression import FeatureRegression
+from modules.feature_regression import FeatureRegressor
 from modules.q_history_encoder import QHistoryEncoder
 from modules.question_decoder import QuestionDecoder
 from modules.question_encoder import QuestionEncoder
@@ -30,10 +30,10 @@ class DeepABot():
                 max_answer_length=self.config.MAX_ANSWER_LENGTH,
                 vocabulary_size=self.config.VOCAB_SIZE,
                 embedding_matrix=embedding_matrix,
-                scope
+                scope=scope,
             )
             self.history_encoder = AHistoryEncoder(
-                self.config.hidden_dims,
+                self.config.hidden_dims, self.config.IMG_REP_DIM,
                 scope
             )
     def encode_images_captions(self, captions, images, caption_lengths):
@@ -118,7 +118,7 @@ class DeepQBot():
                 max_question_length=self.config.MAX_QUESTION_LENGTH,
                 vocabulary_size=self.config.VOCAB_SIZE,
                 embedding_matrix=embedding_matrix,
-                scope
+                scope=scope,
             )
             self.history_encoder = QHistoryEncoder(
                 self.config.hidden_dims,
