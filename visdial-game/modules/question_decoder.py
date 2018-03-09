@@ -37,8 +37,9 @@ class QuestionDecoder(object):
 		===================================
 		"""
 		with tf.variable_scope(self.scope):
-			cells = [tf.contrib.rnn.GRUCell(self.hidden_dimension)]
-			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
+			# cells = [tf.contrib.rnn.GRUCell(self.hidden_dimension)]
+			# self.cell = tf.contrib.rnn.MultiRNNCell(cells)
+			self.cell = tf.contrib.rnn.GRUCell(self.hidden_dimension)
 			self.vocab_logits_layer = Dense(self.vocabulary_size, activation=None)
 
 	def embedding_lookup(self, indices):

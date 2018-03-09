@@ -26,8 +26,9 @@ class QuestionEncoder(object):
     """
     with tf.variable_scope(self.scope):
             # Stack RNN Cells: input -> basic rnn cell -> basic lstm cell -> output
-      cells = [tf.contrib.rnn.GRUCell(self.hidden_dimension)]
-      self.cell = tf.contrib.rnn.MultiRNNCell(cells)
+      # cells = [tf.contrib.rnn.GRUCell(self.hidden_dimension)]
+      # self.cell = tf.contrib.rnn.MultiRNNCell(cells)
+      self.cell = tf.contrib.rnn.GRUCell(self.hidden_dimension)
     
   def encode_questions(self, questions):
     """
