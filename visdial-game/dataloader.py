@@ -37,17 +37,17 @@ class DataLoader(object):
 
     for dsplit in dsplits:
       # read image list, if image features are needed
-      self.img_features = np.array(img_data['images_'+dsplit])
+      img_features = np.array(img_data['images_'+dsplit])
 
       # Normalize the image features (if needed)
       # TODO: normalize image by default
-      # if img_norm:
-      #   print('Normalizing image features..')
-      #   local nm = torch.sqrt(torch.sum(torch.cmul(imgFeats, imgFeats), 2));
-      #   imgFeats = torch.cdiv(imgFeats, nm:expandAs(imgFeats)):float();
+      if self.verbose:
+        print 'Normalizing image features..'
+      norm = np.sqrt(np.sum(img_features * img_features, axis=1))
+      img_features = img_features / np.expand_dims(norm, 1)
 
       # note: img_pos == np.arange(num_images)
-      self.data[dsplit+'_img_fv'] = self.img_features
+      self.data[dsplit+'_img_fv'] = img_features
       # self.data[dsplit+'_img_pos'] = np.array(visdial_data['img_pos_'+dsplit])
       # self.data[dsplit+'_img_pos'] += 1
 
@@ -117,31 +117,26 @@ class DataLoader(object):
 
   def getTrainBatch(self, batch_size):
     # shuffle all the indices
-    size = self.num_dialogs['train']
+    size=13
+    # size = self.num_dialogs['train']
     ordering = np.random.permutation(size)
+    print ordering
 
     for i in xrange(0, size, batch_size):
       inds = ordering[i%size:(i%size+batch_size)]
       yield self.getIndexData(inds, 'train')
 
   def getEvalBatch(self, start_id, batch_size):
-    # get the next start id and fill up current indices till then
-    next_start_id = math.min(self.num_dialogs['val']+1, start_id + batch_size)
+    size = self.num_dialogs['val']
 
-    # dumb way to get range (complains if cudatensor is default)
-    # TODO: replace this
-    # inds = torch.LongTensor(next_start_id - start_id)
-    # for ii in xrange(start_id, next_start_id - 1):
-    #   inds[ii - start_id + 1] = ii
-
-     # Index question, answers, image features for batch
-    batch_output = self.getIndexData(inds, 'val')
-
-    return batch_output, next_start_id
+    for i in xrange(0, size, batch_size):
+      inds = range(i%size,(i%size+batch_size))
+      yield self.getIndexData(inds, 'val')
 
   def getIndexData(self, inds, dsplit):
+    return inds
     # get the question lengths
-    images = self.data[dsplit+'_img_fv'][img_inds]
+    images = self.data[dsplit+'_img_fv'][inds]
 
     captions = self.data[dsplit+'_cap'][inds]
     caption_lengths = self.data[dsplit+'_cap_len'][inds]
@@ -159,6 +154,10 @@ class DataLoader(object):
 if __name__ == '__main__':
   dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
                             'data_img.h5', ['train'], verbose=True)
+  batch_generator = dataloader.getTrainBatch(5)
+  for batch in batch_generator:
+    print batch
+
   batch_generator = dataloader.getTrainBatch(5)
   for batch in batch_generator:
     print batch
