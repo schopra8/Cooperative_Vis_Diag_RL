@@ -20,8 +20,9 @@ class FactEncoder(object):
 		===================================
 		"""
 		with tf.variable_scope(self.scope):
-			cells = [tf.contrib.BasicRNNCell(self.hidden_dimension), tf.contrib.BasicLSTMCell(self.hidden_dimension)]
-			self.cell = tf.contrib.rnn.MultiRNNCell(cells)
+			# cells = [tf.contrib.rnn.GRUCell(self.hidden_dimension)]
+			# self.cell = tf.contrib.rnn.MultiRNNCell(cells)
+			self.cell = tf.contrib.rnn.GRUCell(self.hidden_dimension)
 
 	def generate_fact(self, inputs, input_lengths):
 		"""
