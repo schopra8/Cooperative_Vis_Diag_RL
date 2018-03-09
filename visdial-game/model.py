@@ -173,7 +173,7 @@ class model():
 				self.evaluate(sess,)
 	
 	def train_on_batch(self, sess, batch, supervised_learning_rounds = 10):
-		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
+		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths, _ = batch
 		feed = {
 			self.images:images,
 			self.captions:captions,
@@ -186,10 +186,12 @@ class model():
 		_, loss = sess.run([self.update_op, self.loss], feed_dict = feed)
 		return loss
 
-	def evaluate(self, sess):
+	def evaluate(self, sess, epoch):
 		for batch in generate_dev_minibatches(self.config.batch_size):
-			loss, images, answers, questions = self.eval_on_batch(sess, batch)
-			#GET MRR AND LOG STUFF
+			true_images, _, _, _, _, _, gt_indices = batch
+			loss, preds, gen_answers, gen_questions = self.eval_on_batch(sess, batch)
+			for round_number, p in enumerate(preds):
+				percentage_rank_gt = self.compute_mrr(p, gt_indices, true_images, round_number, epoch)
 
 	def eval_on_batch(self, sess, batch):
 		images, captions, _, _, _, _ = batch
