@@ -1,2 +1,2 @@
 numpy
-pandas
+h5py
