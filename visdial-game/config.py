@@ -14,7 +14,6 @@ class config():
     batch_size = 40
     number_of_dialog_rounds = 10
     max_gradient_norm = 5
-    # Training Parameters
 
     class Q():
         gamma = 1
