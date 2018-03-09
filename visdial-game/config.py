@@ -32,6 +32,3 @@ class Config():
         gamma = 1
         hidden_dims = 512
 
-    class FLAGS():
-        train_dir = ''
-
