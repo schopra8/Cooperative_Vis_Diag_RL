@@ -75,7 +75,7 @@ class model():
 		"""
 		self.captions = tf.nn.embedding_lookup(self.embedding_matrix, self.captions)
 		Q_state = self.Qbot.encode_captions(self.captions, self.caption_lengths)
-		A_state = self.Abot.encode_images_captions(self.images, self.captions, self.caption_lengths)
+		A_state = self.Abot.encode_images_captions(self.captions, self.images, self.caption_lengths)
 		A_fact = self.Abot.encode_facts(self.captions, self.caption_lengths)
 		prev_image_guess = self.Qbot.generate_image_representations(Q_state)
 		image_loss = 0
@@ -200,7 +200,8 @@ class model():
 		return loss, rewards
 	
 	def write_summary(self, value, tag, summary_writer, global_step):
-    """Write a single summary value to tensorboard"""
+		""" Write a single summary value to tensorboard
+		"""
     	summary = tf.Summary()
     	summary.value.add(tag=tag, simple_value=value)
     	summary_writer.add_summary(summary, global_step)

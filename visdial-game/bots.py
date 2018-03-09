@@ -30,7 +30,7 @@ class DeepABot():
                 max_answer_length=self.config.MAX_ANSWER_LENGTH,
                 vocabulary_size=self.config.VOCAB_SIZE,
                 embedding_matrix=embedding_matrix,
-                scope
+                scope=scope,
             )
             self.history_encoder = AHistoryEncoder(
                 self.config.hidden_dims,
@@ -118,7 +118,7 @@ class DeepQBot():
                 max_question_length=self.config.MAX_QUESTION_LENGTH,
                 vocabulary_size=self.config.VOCAB_SIZE,
                 embedding_matrix=embedding_matrix,
-                scope
+                scope=scope,
             )
             self.history_encoder = QHistoryEncoder(
                 self.config.hidden_dims,
