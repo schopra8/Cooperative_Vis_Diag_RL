@@ -168,7 +168,7 @@ class model():
         pass
 
     def train(self, sess, num_epochs = 400, batch_size=20):
-        summary_writer = tf.summary.FileWriter(self.FLAGS.train_dir, session.graph)
+        summary_writer = tf.summary.FileWriter(self.config.model_save_directory, session.graph)
         best_dev_loss = float('Inf')
         curriculum = 0
         for i in xrange(num_epochs):
