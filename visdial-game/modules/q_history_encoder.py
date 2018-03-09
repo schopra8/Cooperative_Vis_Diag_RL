@@ -40,10 +40,8 @@ class QHistoryEncoder(object):
 			next_states: float of shape (batch_size, hidden_dimension) - The new state/history encoding generated using the current_fact
 		"""
 		with tf.variable_scope(self.scope):
-			outputs, next_states = tf.nn.dynamic_rnn(
-				self.cell,
+			outputs, next_states = self.cell(
 				current_facts,
-				initial_state=prev_states,
-				dtype=tf.float32,
+				prev_states,
 			)
 			return outputs ,next_states
