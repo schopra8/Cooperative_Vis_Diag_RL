@@ -184,11 +184,12 @@ class model():
 					self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, global_step)
 	
 	def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
-		images, captions, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
+		images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch
 
 		feed = {
 			self.images:images,
 			self.captions:captions,
+			self.caption_lengths:caption_lengths,
 			self.true_questions:true_questions,
 			self.true_question_lengths:true_question_lengths,
 			self.true_answers:true_answers,
@@ -219,13 +220,14 @@ class model():
 		return dev_loss, MRR
 
 	def eval_on_batch(self, sess, batch):
-		images, captions, _, _, _, _ = batch
+		images, captions, caption_lengths, _, _, _, _ = batch
 		feed = {
 			self.images:images,
 			self.captions:captions,
+			self.caption_lengths: caption_lengths
 			self.supervised_learning_rounds:0
 		}
-		summaries, loss, images, answers, questions = sess.run([self.summaries, self.loss, self.generated_images, self.generated_answers, self.generated_questions, self.batch_rewards], feed_dict = feed)
+		loss, images, answers, questions, rewards = sess.run([self.loss, self.generated_images, self.generated_answers, self.generated_questions, self.batch_rewards], feed_dict = feed)
 		
 		return loss, images, answers, questions, rewards
 
@@ -278,8 +280,17 @@ class model():
 		percentage_rank_gt = (np.array(pos_gt) + 1) / validation_data_sz  # + 1 to account for 0 indexing
 		return percentage_rank_gt
 
-	def show_dialog(self, image, caption, answer):
-		pass
+	def show_dialog(self, sess, image, caption, answer):
+		feed = {
+			self.images:images,
+			self.captions:captions,
+			self.caption_lengths: caption_lengths
+			self.supervised_learning_rounds:0
+		}
+		images, answers, questions = sess.run([self.generated_images, self.generated_answers, self.generated_questions], feed_dict = feed)
+		
+		return loss, images, answers, questions, rewards
+
 
 	def concatenate_q_a(self, questions, question_lengths, answers, answer_lengths):
 		"""
