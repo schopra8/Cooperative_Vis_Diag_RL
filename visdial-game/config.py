@@ -14,7 +14,6 @@ class Config():
     batch_size = 40
     number_of_dialog_rounds = 10
     max_gradient_norm = 5
-    # Training Parameters
 
     class Q():
         gamma = 1
@@ -24,7 +23,6 @@ class Config():
         gamma = 1
         hidden_dims = 512
 
-##Output files
-    output_dir = "./results"
-    DATA_DIR = "../synthetic_data/"
-    DATA_FILE = "synthetic_data.csv"
+    class FLAGS():
+        train_dir = ''
+
