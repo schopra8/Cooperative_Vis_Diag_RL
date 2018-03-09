@@ -167,7 +167,7 @@ class model():
 
 	def train(self, sess, num_epochs = 400, batch_size=20):
 		summary_writer = tf.summary.FileWriter(self.FLAGS.train_dir, session.graph)
-
+		best_dev_loss = float('Inf')
 		curriculum = 0
 		for i in xrange(num_epochs):
 			if i<15:
@@ -182,6 +182,13 @@ class model():
 					dev_loss, dev_MRR = self.evaluate(sess)
 					self.write_summary(dev_loss, "dev/loss_total", summary_writer, global_step)
 					self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, global_step)
+					if dev_loss < best_dev_loss:
+						best_dev_loss = dev_loss
+						self.bestmodel_saver.save(sess, self.config.best_save_directory, global_step=global_step)
+				
+				if global_step % self.config.save_every ==0:
+					self.saver.save(sess, self.config.model_save_directory, global_step=global_step)
+
 	
 	def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
 		images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths = batch

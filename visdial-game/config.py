@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-class config():
+class Config():
     # Language Parametrs
     START_TOKEN = '<GO>'
     END_TOKEN = '<STOP>'
