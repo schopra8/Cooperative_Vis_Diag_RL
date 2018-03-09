@@ -1,4 +1,5 @@
 import tensorflow as tf
+import os
 
 class Config():
     # Language Parametrs
@@ -14,8 +15,12 @@ class Config():
     batch_size = 40
     number_of_dialog_rounds = 10
     max_gradient_norm = 5
-    model_save_directory = "../results/"
-    best_save_directory = "../results/best"
+    model_save_directory = "../visdial_results/"
+    best_save_directory = "../visdial_results/best"
+    if not os.path.isdir(model_save_directory):
+        os.makedirs(model_save_directory)
+    if not os.path.isdir(best_save_directory):
+        os.makedirs(best_save_directory)
     eval_every = 1000
     save_every = 1000
     
