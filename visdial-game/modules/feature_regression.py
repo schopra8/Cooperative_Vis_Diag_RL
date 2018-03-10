@@ -24,5 +24,5 @@ class FeatureRegressor(object):
 		"""
 		##Assumed that fully connected layer has no activation at output!
 		with tf.variable_scope(self.scope):
-			image_prediction = tf.contrib.layers.fully_connected(state, self.image_dimension, activation_fn = None)
+			image_prediction = tf.contrib.layers.fully_connected(state, self.image_dimension, activation_fn = tf.tanh)
 			return image_prediction
