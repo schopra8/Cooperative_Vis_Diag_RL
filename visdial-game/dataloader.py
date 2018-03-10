@@ -117,10 +117,8 @@ class DataLoader(object):
 
   def getTrainBatch(self, batch_size):
     # shuffle all the indices
-    size=13
-    # size = self.num_dialogs['train']
+    size = self.num_dialogs['train']
     ordering = np.random.permutation(size)
-    print ordering
 
     for i in xrange(0, size, batch_size):
       inds = ordering[i%size:(i%size+batch_size)]
@@ -134,7 +132,6 @@ class DataLoader(object):
       yield self.getIndexData(inds, 'val')
 
   def getIndexData(self, inds, dsplit):
-    return inds
     # get the question lengths
     images = self.data[dsplit+'_img_fv'][inds]
 

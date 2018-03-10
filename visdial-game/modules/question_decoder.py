@@ -68,7 +68,7 @@ class QuestionDecoder(object):
 			decoder = tf.contrib.seq2seq.BasicDecoder(
 				cell=self.cell,
 				helper=helper,
-				initial_states=states,
+				initial_state=states,
 				output_layer=self.vocab_logits_layer,
 			)
 			#final sequence of outputs
