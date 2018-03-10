@@ -3,6 +3,8 @@ import os
 
 class Config():
     # Language Parametrs
+    NUM_TRAINING_SAMPLES = 82783
+    NUM_VALIDATION_SAMPLES = 40504
     NUM_EPOCHS = 15
     START_TOKEN = '<GO>'
     END_TOKEN = '<STOP>'
@@ -14,7 +16,6 @@ class Config():
     VOCAB_SIZE = 8845 + 2
     IMG_REP_DIM = 300
     EMBEDDING_SIZE = 300
-    num_epochs = 15
     batch_size = 40
     num_dialog_rounds = 10
     max_gradient_norm = 5
