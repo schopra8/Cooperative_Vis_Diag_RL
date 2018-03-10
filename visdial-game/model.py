@@ -120,7 +120,7 @@ class model():
                 true_question_lengths_round = self.true_question_lengths[:,i]
                 true_answer_lengths_round = self.true_answer_lengths[:,i]
                 #Generate questions based on current state
-                question_logits, question_lengths = self.Qbot.get_questions(
+                question_outputs, question_lengths = self.Qbot.get_questions(
                     Q_state,
                     true_questions=questions,
                     true_question_lengths=true_question_lengths_round,
@@ -131,7 +131,7 @@ class model():
                 #Update A state based on true question
                 A_state = self.Abot.encode_state_histories(A_fact, self.images, encoded_questions, A_state)
                 # ABot Generates answers based on current state
-                answer_logits, answer_lengths = self.Abot.get_answers(
+                answer_outputs, answer_lengths = self.Abot.get_answers(
                     A_state,
                     true_answers=answers,
                     true_answer_lengths=true_answer_lengths_round,
@@ -139,14 +139,16 @@ class model():
                 )
                 #Generate facts from true questions and answers
                 facts, fact_lengths = self.concatenate_q_a(questions, true_question_lengths_round, answers, true_answer_lengths_round)
-                facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
-                A_fact = self.Abot.encode_facts(facts, fact_lengths)
-                Q_fact = self.Qbot.encode_facts(facts, fact_lengths)
+                embedded_facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
+                A_fact = self.Abot.encode_facts(embedded_facts, fact_lengths)
+                Q_fact = self.Qbot.encode_facts(embedded_facts, fact_lengths)
                 #Update state histories using current facts
-                Q_state = self.Qbot.encode_state_histories(facts, Q_state)
+                Q_state = self.Qbot.encode_state_histories(Q_fact, Q_state)
                 #Guess image
                 image_guess = self.Qbot.generate_image_representations(Q_state)
                 #### Loss for supervised training
+                question_logits, question_order = tf.transpose(question_outputs[0], perm=[1, 0, 2]), tf.transpose(question_outputs[1], perm=[1, 0])
+                answer_logits, answer_order = tf.transpose(answer_outputs[0], perm=[1, 0, 2]), tf.transpose(answer_outputs[1], perm=[1, 0])
                 dialog_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits = question_logits, labels = questions)
                 dialog_loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits = answer_logits, labels = answers)
                 image_loss += tf.nn.l2_loss(image_guess - self.images)
@@ -197,8 +199,9 @@ class model():
         }
         loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(supervised_learning_rounds)
         optimizer = tf.train.AdamOptimizer(learning_rate = self.config.learning_rate)
-        grads, variables = optimizer.compute_gradients(loss)
+        grads, variables = map(list,zip(*optimizer.compute_gradients(loss)))
         clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
+        print clipped_grads
         update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
         summary, _, global_step, loss, rewards = sess.run([self.summaries, update_op, self.global_step, loss, batch_rewards], feed_dict = feed)
         summary_writer.add_summary(summary, global_step)

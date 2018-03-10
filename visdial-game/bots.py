@@ -158,8 +158,8 @@ class DeepQBot():
         Returns:
             state: encoded state that combines the current facts and previous facts [Batch Size, 1]
         """
-        outputs, next_states = self.history_encoder.generate_next_state(recent_facts, prev_states)
-        return outputs, next_states
+        next_states = self.history_encoder.generate_next_state(recent_facts, prev_states)
+        return next_states
 
     def generate_image_representations(self, states):
         """Guesses images given the current states (Feature Regression Network)

@@ -16,6 +16,7 @@ class Config():
     VOCAB_SIZE = 8845 + 2
     IMG_REP_DIM = 300
     EMBEDDING_SIZE = 300
+    learning_rate = 1e-3
     batch_size = 40
     num_dialog_rounds = 10
     max_gradient_norm = 5
