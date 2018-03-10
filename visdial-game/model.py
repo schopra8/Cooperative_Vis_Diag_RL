@@ -315,18 +315,22 @@ class model():
         question_answer_pair_lengths = (batch_size): The actual length of the question, answer concatenations
         """
         max_size = self.config.MAX_QUESTION_LENGTH + self.config.MAX_ANSWER_LENGTH
-        padded_question_answer_pairs = []
-        def body(i):
+        question_answer_pair_lengths = tf.add(question_lengths, answer_lengths)        
+        padded_question_answer_pairs = tf.Variable([], dtype=tf.int32)
+        def body(i, padded_question_answer_pairs):
             stripped_question_answer_pair = tf.expand_dims(tf.concat([questions[i,0:question_lengths[i]],answers[i,0:answer_lengths[i]]], axis=0), axis=0)
-            num_pad = max_size - question_lengths[i] + answer_lengths[i]
-            print num_pad
-            paddings = tf.constant([[0, 0],[0]])
-            padded_question_answer_pairs.append(tf.pad(stripped_question_answer_pair, paddings))
-            return [tf.add(i, 1)]
+            num_pad = max_size - question_answer_pair_lengths[i]
+            paddings = tf.multiply(tf.constant([[1, 1],[1, 1]]),  num_pad)
+            paddings = tf.multiply(paddings, tf.constant([[0, 0],[0, 1]]))
+            padded_question_answer_pairs = tf.concat([padded_question_answer_pairs, tf.pad(stripped_question_answer_pair, paddings, "CONSTANT")], axis=0)
+            return tf.add(i, 1), padded_question_answer_pairs
 
         i = tf.constant(0)
-        while_condition = lambda i: tf.less(i, tf.shape(questions)[0])
-        r = tf.while_loop(while_condition, body, [i])
-        question_answer_pairs = tf.stack(padded_question_answer_pairs, axis = 0)
-        question_answer_pair_lengths = tf.add(question_lengths, answer_lengths)
-        return question_answer_pairs, question_answer_pair_lengths
+        while_condition = lambda i, padded_question_answer_pairs: tf.less(i, tf.shape(questions)[0])
+        r, padded_question_answer_pairs = tf.while_loop(
+            while_condition,
+            body,
+            [i, padded_question_answer_pairs],
+            parallel_iterations=1
+        )
+        return padded_question_answer_pairs, question_answer_pair_lengths
