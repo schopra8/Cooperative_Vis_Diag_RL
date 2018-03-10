@@ -24,7 +24,8 @@ class Config():
         os.makedirs(best_save_directory)
     eval_every = 1000
     save_every = 1000
-    
+    #number of models to keep
+    keep = 1
     class Q():
         gamma = 1
         hidden_dims = 512

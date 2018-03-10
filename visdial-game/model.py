@@ -23,8 +23,8 @@ class model():
             self.embedding_matrix
         )
         self.add_placeholders()
-        self.add_all_ops()
-        self.add_update_op()
+        # self.add_all_ops()
+        # self.add_update_op()
         self.best_model_saver = tf.train.Saver(tf.global_variables(), max_to_keep=1)
         self.summaries = tf.summary.merge_all()
         self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.config.keep)
@@ -40,28 +40,14 @@ class model():
         self.images = tf.placeholder(tf.float32, shape = [None, self.config.IMG_REP_DIM])
         self.captions = tf.placeholder(tf.int32, shape = [None, self.config.MAX_CAPTION_LENGTH])
         self.caption_lengths = tf.placeholder(tf.int32, shape = [None])
-        self.true_questions = tf.placeholder(tf.int32, shape = [None, self.config.number_of_dialog_rounds, self.config.MAX_QUESTION_LENGTH])
-        self.true_answers = tf.placeholder(tf.int32, shape = [None, self.config.number_of_dialog_rounds, self.config.MAX_ANSWER_LENGTH])
-        self.true_question_lengths = tf.placeholder(tf.int32, shape = [None, self.config.number_of_dialog_rounds])
-        self.true_answer_lengths = tf.placeholder(tf.int32, shape = [None, self.config.number_of_dialog_rounds])
-        self.supervised_learning_rounds = tf.placeholder(tf.int32, shape = [])
-
-    def add_update_op(self):
-        """
-        Add update_op to perform one gradient descent step with clipped gradients
-        """
-        optimizer = tf.train.AdamOptimizer(learning_rate = self.config.learning_rate)
-        grads, variables = optimizer.compute_gradients(self.loss)
-        clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
-        self.update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
-    
-    def add_all_ops(self):
-        self.loss, self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards = self.run_dialog()
-        tf.summary.scalar('loss_start', self.loss)
-        tf.summary.scalar('batch_rewards', np.mean(np.asarray(self.batch_rewards)))
+        self.true_questions = tf.placeholder(tf.int32, shape = [None, self.config.num_dialog_rounds, self.config.MAX_QUESTION_LENGTH])
+        self.true_answers = tf.placeholder(tf.int32, shape = [None, self.config.num_dialog_rounds, self.config.MAX_ANSWER_LENGTH])
+        self.true_question_lengths = tf.placeholder(tf.int32, shape = [None, self.config.num_dialog_rounds])
+        self.true_answer_lengths = tf.placeholder(tf.int32, shape = [None, self.config.num_dialog_rounds])
+        # self.supervised_learning_rounds = tf.placeholder(tf.int32, shape = [])
 
     
-    def run_dialog(self):
+    def run_dialog(self, supervised_learning_rounds):
         """
         Function that runs dialog between two bots for a variable number of rounds, with a subset of rounds with supervised training
         ================================
@@ -90,8 +76,8 @@ class model():
         generated_images = []
         batch_rewards = []
         for i in xrange(self.config.num_dialog_rounds):
-            x = tf.constant(i)
-            if tf.greater_equal(x, self.supervised_learning_rounds): ## RL training
+            
+            if i >= supervised_learning_rounds: ## RL training
                 #Q-Bot generates question logits
                 question_logits, question_lengths = self.Qbot.get_questions(Q_state, supervised_training = False)
                 #Find embeddings of questions
@@ -210,10 +196,15 @@ class model():
             self.true_question_lengths:true_question_lengths,
             self.true_answers:true_answers,
             self.true_answer_lengths: true_answer_lengths,
-            self.supervised_learning_rounds:supervised_learning_rounds
         }
-        summary, _, global_step, loss, rewards = sess.run([self.summaries, self.update_op, self.global_step, self.loss, self.batch_rewards], feed_dict = feed)
+        loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(supervised_learning_rounds)
+        optimizer = tf.train.AdamOptimizer(learning_rate = self.config.learning_rate)
+        grads, variables = optimizer.compute_gradients(self.loss)
+        clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
+        update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
+        summary, _, global_step, loss, rewards = sess.run([self.summaries, update_op, self.global_step, loss, batch_rewards], feed_dict = feed)
         summary_writer.add_summary(summary, global_step)
+        self.write_summary(loss, 'train_loss', summary_writer, self.global_step)
         return loss, rewards
     
     def write_summary(self, value, tag, summary_writer, global_step):
@@ -233,7 +224,7 @@ class model():
             true_images, _, _, _, _, _, gt_indices = batch
             loss, preds, gen_answers, gen_questions = self.eval_on_batch(sess, batch)
             dev_loss += loss
-            MRR = np.zeros([self.config.number_of_dialog_rounds])
+            MRR = np.zeros([self.config.num_dialog_rounds])
             if compute_MRR:
                 for round_number, p in enumerate(preds):
                     percentage_rank_gt = self.compute_mrr(p, gt_indices, true_images, round_number, epoch)
@@ -246,9 +237,9 @@ class model():
             self.images:images,
             self.captions:captions,
             self.caption_lengths: caption_lengths,
-            self.supervised_learning_rounds:0
         }
-        loss, images, answers, questions, rewards = sess.run([self.loss, self.generated_images, self.generated_answers, self.generated_questions, self.batch_rewards], feed_dict = feed)
+        loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(0)
+        loss, images, answers, questions, rewards = sess.run([loss, generated_images, generated_answers, generated_questions, batch_rewards], feed_dict = feed)
         
         return loss, images, answers, questions, rewards
 
