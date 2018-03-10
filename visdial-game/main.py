@@ -13,7 +13,7 @@ def main():
             visdial_bots.saver.restore(sess, ckpt.model_checkpoint_path)
         else:
             sess.run(tf.global_variables_initializer())
-        visdial_bots.train(sess, num_epochs = config.num_epochs, batch_size = config.batch_size)
+        visdial_bots.train(sess, num_epochs = config.NUM_EPOCHS, batch_size = config.batch_size)
 
 
 if __name__ == '__main__':

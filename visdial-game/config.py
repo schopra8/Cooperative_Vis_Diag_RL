@@ -3,6 +3,7 @@ import os
 
 class Config():
     # Language Parametrs
+    NUM_EPOCHS = 15
     START_TOKEN = '<GO>'
     END_TOKEN = '<STOP>'
     START_TOKEN_IDX = 8846

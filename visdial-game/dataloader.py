@@ -97,7 +97,7 @@ class DataLoader(object):
 
     numDialogs, numRounds, maxLength = sentences.shape
 
-    new_sentences = np.zeros((numDialogs, numRounds, maxLength+2), dtype=np.uint32)
+    new_sentences = np.zeros((numDialogs, numRounds, maxLength+2), dtype=np.int32)
     new_sentences[:,:,0] = self.word2ind['<START>']
 
     # go over each answer and modify
@@ -126,7 +126,7 @@ class DataLoader(object):
       inds = ordering[i%size:(i%size+batch_size)]
       yield self.getIndexData(inds, 'train')
 
-  def getEvalBatch(self, start_id, batch_size):
+  def getEvalBatch(self, batch_size):
     size = self.num_dialogs['val']
 
     for i in xrange(0, size, batch_size):
