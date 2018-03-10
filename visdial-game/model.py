@@ -153,11 +153,6 @@ class model():
         loss += dialog_loss + image_loss
     return loss, generated_questions, generated_answers, generated_images, batch_rewards
 
-  def get_minibatches(self, batch_size=40):
-    #Expecting
-    #batch = (images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_index)
-    pass
-
     def train(self, sess, num_epochs=400, batch_size=20):
         summary_writer = tf.summary.FileWriter(self.config.model_save_directory, sess.graph)
         best_dev_loss = float('Inf')
