@@ -314,13 +314,19 @@ class model():
         question_answer_pairs: float of shape (batch_size, max_question_length + max_answer_length): The sequence of output vectors for every timestep
         question_answer_pair_lengths = (batch_size): The actual length of the question, answer concatenations
         """
-        batch_size = tf.shape(questions)[0].eval()
-        stripped_question_answer_pairs = [tf.concat([
-                questions[i,0:question_lengths[i],:],
-                answers[i,0:answer_lengths[i],:]], axis=1)
-                for i in xrange(batch_size)]
         max_size = self.config.MAX_QUESTION_LENGTH + self.config.MAX_ANSWER_LENGTH
-        padded_question_answer_pairs = [tf.pad(stripped_question_answer_pairs[i], [0, max_size - tf.shape(stripped_question_answer_pairs[i])[0]]) for i in xrange(batch_size)]
+        padded_question_answer_pairs = []
+        def body(i):
+            stripped_question_answer_pair = tf.expand_dims(tf.concat([questions[i,0:question_lengths[i]],answers[i,0:answer_lengths[i]]], axis=0), axis=0)
+            num_pad = max_size - question_lengths[i] + answer_lengths[i]
+            print num_pad
+            paddings = tf.constant([[0, 0],[0]])
+            padded_question_answer_pairs.append(tf.pad(stripped_question_answer_pair, paddings))
+            return [tf.add(i, 1)]
+
+        i = tf.constant(0)
+        while_condition = lambda i: tf.less(i, tf.shape(questions)[0])
+        r = tf.while_loop(while_condition, body, [i])
         question_answer_pairs = tf.stack(padded_question_answer_pairs, axis = 0)
         question_answer_pair_lengths = tf.add(question_lengths, answer_lengths)
         return question_answer_pairs, question_answer_pair_lengths
