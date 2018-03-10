@@ -322,7 +322,7 @@ class model():
             num_pad = max_size - question_answer_pair_lengths[i]
             paddings = tf.multiply(tf.constant([[1, 1],[1, 1]]),  num_pad)
             paddings = tf.multiply(paddings, tf.constant([[0, 0],[0, 1]]))
-            padded_question_answer_pairs = tf.concat([padded_question_answer_pairs, tf.pad(stripped_question_answer_pair, paddings, "CONSTANT")], axis=0)
+            padded_question_answer_pairs = tf.concat([padded_question_answer_pairs, tf.squeeze(tf.pad(stripped_question_answer_pair, paddings, "CONSTANT"))], axis=0)
             return tf.add(i, 1), padded_question_answer_pairs
 
         i = tf.constant(0)
@@ -331,6 +331,8 @@ class model():
             while_condition,
             body,
             [i, padded_question_answer_pairs],
-            parallel_iterations=1
+            parallel_iterations=1,
+            shape_invariants=[i.get_shape(), tf.TensorShape([None])]
         )
+        padded_question_answer_pairs = tf.reshape(padded_question_answer_pairs, [-1, max_size])
         return padded_question_answer_pairs, question_answer_pair_lengths
