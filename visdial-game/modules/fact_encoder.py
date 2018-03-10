@@ -35,7 +35,7 @@ class FactEncoder(object):
         OUTPUTS:
             next_facts: float of shape (batch_size, hidden_dimension) - The new fact encoding generated using the current answers and question
         """
-        with tf.variable_scope(self.scope):
+        with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             _, next_facts = tf.nn.dynamic_rnn(
                 self.cell,
                 inputs,

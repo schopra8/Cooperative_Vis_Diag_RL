@@ -18,7 +18,7 @@ class QuestionEncoder(object):
         self.hidden_dimension = hidden_dimension
         self.scope = scope
         self.add_cells()
-                
+
     def add_cells(self):
         """
         Builds the graph to take in the questions and ouput embeddings for each question.
@@ -29,7 +29,7 @@ class QuestionEncoder(object):
             # cells = [tf.contrib.rnn.GRUCell(self.hidden_dimension)]
             # self.cell = tf.contrib.rnn.MultiRNNCell(cells)
             self.cell = tf.contrib.rnn.GRUCell(self.hidden_dimension)
-        
+
     def encode_questions(self, questions):
         """
         Given a question, output an embedding for the question.
@@ -37,9 +37,9 @@ class QuestionEncoder(object):
         INPUTS:
         questions: float - (batch_size, max_sequence_length, vocabulary_size)
         """
-        with tf.variable_scope(self.scope):
+        with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             batch_size = tf.shape(questions)[0]
-            encoded_questions, _ = tf.nn.dynamic_rnn(
+            _, encoded_questions = tf.nn.dynamic_rnn(
                 self.cell,
                 questions,
                 dtype=tf.float32

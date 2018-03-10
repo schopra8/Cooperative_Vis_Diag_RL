@@ -45,7 +45,7 @@ class DeepABot():
             caption_lengths [Batch Size]: Gives lengths of the captions
         """
         batch_size = tf.shape(captions)[0]
-        empty_questions = tf.zeros([batch_size, self.config.MAX_QUESTION_LENGTH])
+        empty_questions = tf.zeros([batch_size, self.config.A.hidden_dims])
         encoded_captions = self.fact_encoder.generate_fact(captions, caption_lengths)
         initial_states = self.history_encoder.generate_next_state(encoded_captions, empty_questions, images, prev_states=None)
         return initial_states

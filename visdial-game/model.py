@@ -134,7 +134,7 @@ class model():
                 answer_logits, answer_lengths = self.Abot.get_answers(
                     A_state,
                     true_answers=answers,
-                    true_answer_lengths=answer_lengths,
+                    true_answer_lengths=true_answer_lengths_round,
                     supervised_training=True
                 )
                 #Generate facts from true questions and answers
@@ -186,7 +186,6 @@ class model():
   
     def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
         images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
-
         feed = {
             self.images:images,
             self.captions:captions,
@@ -301,7 +300,6 @@ class model():
         preds, gen_answers, gen_questions = sess.run([generated_images, generated_answers, generated_questions], feed_dict=feed)
         return preds, gen_answers, gen_questions
 
-
     def concatenate_q_a(self, questions, question_lengths, answers, answer_lengths):
         """
         Concatenate question, answer pairs
@@ -316,8 +314,11 @@ class model():
         question_answer_pairs: float of shape (batch_size, max_question_length + max_answer_length): The sequence of output vectors for every timestep
         question_answer_pair_lengths = (batch_size): The actual length of the question, answer concatenations
         """
-        batch_size = tf.shape(questions)[0]
-        stripped_question_answer_pairs = [tf.concat([questions[i,0:question_lengths[i],:], answers[i,0:answer_lengths[i],:]], axis = 1)for i in xrange(batch_size)]
+        batch_size = tf.shape(questions)[0].eval()
+        stripped_question_answer_pairs = [tf.concat([
+                questions[i,0:question_lengths[i],:],
+                answers[i,0:answer_lengths[i],:]], axis=1)
+                for i in xrange(batch_size)]
         max_size = self.config.MAX_QUESTION_LENGTH + self.config.MAX_ANSWER_LENGTH
         padded_question_answer_pairs = [tf.pad(stripped_question_answer_pairs[i], [0, max_size - tf.shape(stripped_question_answer_pairs[i])[0]]) for i in xrange(batch_size)]
         question_answer_pairs = tf.stack(padded_question_answer_pairs, axis = 0)

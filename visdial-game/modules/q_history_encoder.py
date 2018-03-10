@@ -42,7 +42,7 @@ class QHistoryEncoder(object):
         """
         if prev_states is None:
             prev_states = self.cell.zero_state(tf.shape(current_facts)[0], dtype=tf.float32)
-        with tf.variable_scope(self.scope):
+        with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             _, next_states = self.cell(
                 current_facts,
                 prev_states

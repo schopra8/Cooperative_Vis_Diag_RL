@@ -23,6 +23,6 @@ class FeatureRegressor(object):
         image_prediction: float of shape (batch_size, image_prediction) - The new image prediction based on dialog so far
         """
         ##Assumed that fully connected layer has no activation at output!
-        with tf.variable_scope(self.scope):
+        with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             image_prediction = tf.contrib.layers.fully_connected(state, self.image_dimension, activation_fn = None)
             return image_prediction

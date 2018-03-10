@@ -60,16 +60,17 @@ class AnswerDecoder(object):
         final_outputs: float of shape (batch_size, max_sequence_length, hidden_size): The sequence of output vectors for every timestep
         final_sequence_lengths = (batch_size): The actual length of the answers
         """
-        with tf.variable_scope(self.scope):
+        with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             if supervised_training:
-                helper = tf.contrib.seq2seq.TrainingHelper(true_answers, true_answer_lengths, self.scope)
+                embedded_answers = self.embedding_lookup(true_answers)
+                helper = tf.contrib.seq2seq.TrainingHelper(embedded_answers, true_answer_lengths, self.scope)
             else:
                 start_tokens = tf.tile(self.start_token_embedding, [tf.shape(states)[0]])
                 helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=self.embedding_lookup, start_tokens=start_tokens, end_token=self.end_token_idx)
             decoder = tf.contrib.seq2seq.BasicDecoder(
                 cell=self.cell,
                 helper=helper,
-                initial_states=states,
+                initial_state=states,
                 output_layer=self.vocab_logits_layer,
             )
             # final_outputs = (batch_size, max_sequence_length, hidden_size)

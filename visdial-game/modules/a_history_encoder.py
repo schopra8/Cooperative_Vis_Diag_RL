@@ -32,7 +32,7 @@ class AHistoryEncoder(object):
             self.cell = tf.contrib.rnn.GRUCell(self.hidden_dimension)
 
     def convert_images(self, images):
-        with tf.variable_scope(self.scope):
+        with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             output = tf.contrib.layers.fully_connected(images, self.image_reduced_dimension, activation_fn = None)
             return output
 
@@ -54,7 +54,7 @@ class AHistoryEncoder(object):
         inputs = tf.concat([questions, images, current_facts], 1)
         if prev_states is None:
             prev_states = self.cell.zero_state(tf.shape(current_facts)[0], dtype=tf.float32)
-        with tf.variable_scope(self.scope):
+        with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             _, next_states = self.cell(
                 inputs,
                 prev_states
