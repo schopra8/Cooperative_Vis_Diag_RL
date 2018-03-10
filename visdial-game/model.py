@@ -200,6 +200,8 @@ class model():
         loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(supervised_learning_rounds)
         optimizer = tf.train.AdamOptimizer(learning_rate = self.config.learning_rate)
         grads, variables = map(list,zip(*optimizer.compute_gradients(loss)))
+        print grads
+        print variables
         clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
         print clipped_grads
         update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
