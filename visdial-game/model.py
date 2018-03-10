@@ -182,27 +182,7 @@ class model():
 
                 if self.global_step % self.config.save_every == 0:
                     self.saver.save(sess, self.config.model_save_directory, global_step=self.global_step)
-  
-    def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
-        images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
-        feed = {
-            self.images:images,
-            self.captions:captions,
-            self.caption_lengths:caption_lengths,
-            self.true_questions:true_questions,
-           self.true_question_lengths:true_question_lengths,
-           self.true_answers:true_answers,
-           self.true_answer_lengths: true_answer_lengths,
-        }
-        loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(supervised_learning_rounds)
-        optimizer = tf.train.AdamOptimizer(learning_rate = self.config.learning_rate)
-        grads, variables = optimizer.compute_gradients(loss)
-        clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
-        update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
-        summary, _, global_step, loss, rewards = sess.run([self.summaries, update_op, self.global_step, loss, batch_rewards], feed_dict = feed)
-        summary_writer.add_summary(summary, global_step)
-        self.write_summary(loss, 'train_loss', summary_writer, self.global_step)
-        return loss, rewards
+
   
     def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
         images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
