@@ -182,61 +182,28 @@ class model():
 
                 if self.global_step % self.config.save_every == 0:
                     self.saver.save(sess, self.config.model_save_directory, global_step=self.global_step)
-
-    
+  
     def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
-        
-        if self.global_step % self.config.save_every == 0:
-          self.saver.save(sess, self.config.model_save_directory, global_step=self.global_step)
-
+        images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
+        feed = {
+            self.images:images,
+            self.captions:captions,
+            self.caption_lengths:caption_lengths,
+            self.true_questions:true_questions,
+           self.true_question_lengths:true_question_lengths,
+           self.true_answers:true_answers,
+           self.true_answer_lengths: true_answer_lengths,
+        }
+        loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(supervised_learning_rounds)
+        optimizer = tf.train.AdamOptimizer(learning_rate = self.config.learning_rate)
+        grads, variables = optimizer.compute_gradients(loss)
+        clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
+        update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
+        summary, _, global_step, loss, rewards = sess.run([self.summaries, update_op, self.global_step, loss, batch_rewards], feed_dict = feed)
+        summary_writer.add_summary(summary, global_step)
+        self.write_summary(loss, 'train_loss', summary_writer, self.global_step)
+        return loss, rewards
   
-  def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
-    
-    images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
-
-    feed = {
-      self.images:images,
-      self.captions:captions,
-      self.caption_lengths:caption_lengths,
-      self.true_questions:true_questions,
-      self.true_question_lengths:true_question_lengths,
-      self.true_answers:true_answers,
-      self.true_answer_lengths: true_answer_lengths,
-    }
-    loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(supervised_learning_rounds)
-    optimizer = tf.train.AdamOptimizer(learning_rate = self.config.learning_rate)
-    grads, variables = optimizer.compute_gradients(loss)
-    clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
-    update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
-    summary, _, global_step, loss, rewards = sess.run([self.summaries, update_op, self.global_step, loss, batch_rewards], feed_dict = feed)
-    summary_writer.add_summary(summary, global_step)
-    self.write_summary(loss, 'train_loss', summary_writer, self.global_step)
-    return loss, rewards
-  
-  def write_summary(self, value, tag, summary_writer, global_step):
-    """ Write a single summary value to tensorboard
-    """
-    summary = tf.Summary()
-    summary.value.add(tag=tag, simple_value=value)
-    summary_writer.add_summary(summary, global_step)
-  
-  def evaluate(self, sess, epoch, compute_MRR = False):
-    # files are expected to be in ../data
-    eval_dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
-              'data_img.h5', ['val'])
-    dev_loss = 0
-    dev_batch_generator = eval_dataloader.getEvalBatch(self.config.batch_size)
-    for batch in dev_batch_generator:
-      true_images, _, _, _, _, _, gt_indices = batch
-      loss, preds, _, _, _ = self.eval_on_batch(sess, batch)
-      dev_loss += loss
-      MRR = np.zeros([self.config.num_dialog_rounds])
-      if compute_MRR:
-        for round_number, p in enumerate(preds):
-          percentage_rank_gt = self.compute_mrr(p, gt_indices, true_images, round_number, epoch)
-          MRR[round_number] += tf.reduce_mean(percentage_rank_gt)
-    return dev_loss, MRR
-
     def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
         images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
 
