@@ -3,7 +3,7 @@ import os, sys
 from modules.a_history_encoder import AHistoryEncoder
 from modules.answer_decoder import AnswerDecoder
 from modules.fact_encoder import FactEncoder
-from modules.feature_regression import FeatureRegressor
+from modules.feature_regressor import FeatureRegressor
 from modules.q_history_encoder import QHistoryEncoder
 from modules.question_decoder import QuestionDecoder
 from modules.question_encoder import QuestionEncoder
@@ -45,7 +45,7 @@ class DeepABot():
             caption_lengths [Batch Size]: Gives lengths of the captions
         """
         batch_size = tf.shape(captions)[0]
-        empty_questions = tf.zeros([batch_size, self.config.MAX_QUESTION_LENGTH])
+        empty_questions = tf.zeros([batch_size, self.config.A.hidden_dims])
         encoded_captions = self.fact_encoder.generate_fact(captions, caption_lengths)
         initial_states = self.history_encoder.generate_next_state(encoded_captions, empty_questions, images, prev_states=None)
         return initial_states

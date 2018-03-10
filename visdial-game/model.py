@@ -134,7 +134,7 @@ class model():
                 answer_logits, answer_lengths = self.Abot.get_answers(
                     A_state,
                     true_answers=answers,
-                    true_answer_lengths=answer_lengths,
+                    true_answer_lengths=true_answer_lengths_round,
                     supervised_training=True
                 )
                 #Generate facts from true questions and answers
@@ -143,7 +143,7 @@ class model():
                 A_fact = self.Abot.encode_facts(facts, fact_lengths)
                 Q_fact = self.Qbot.encode_facts(facts, fact_lengths)
                 #Update state histories using current facts
-                Q_state = self.Qbot.encode_state_histories(Q_state, facts, fact_lengths)
+                Q_state = self.Qbot.encode_state_histories(facts, Q_state)
                 #Guess image
                 image_guess = self.Qbot.generate_image_representations(Q_state)
                 #### Loss for supervised training
@@ -153,16 +153,13 @@ class model():
                 loss += dialog_loss + image_loss
         return loss, generated_questions, generated_answers, generated_images, batch_rewards
 
-    def get_minibatches(self, batch_size=40):
-        #Expecting
-        #batch = (images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_index)
-        pass
-
-    def train(self, sess, num_epochs = 400, batch_size=20):
-        summary_writer = tf.summary.FileWriter(self.config.model_save_directory, session.graph)
+    def train(self, sess, num_epochs=400, batch_size=20):
+        summary_writer = tf.summary.FileWriter(self.config.model_save_directory, sess.graph)
         best_dev_loss = float('Inf')
         curriculum = 0
         for i in xrange(num_epochs):
+            num_batches = self.config.NUM_TRAINING_SAMPLES / batch_size + 1
+            progbar = tf.keras.utils.Progbar(target=num_batches)
             if i<15:
                 curriculum = 10
             else:
@@ -170,24 +167,25 @@ class model():
             if curriculum <0:
                 curriculum = 0
             batch_generator = self.dataloader.getTrainBatch(self.config.batch_size)
-            for batch in batch_generator:
+            for j, batch in enumerate(batch_generator):
                 loss = self.train_on_batch(sess, batch, summary_writer, supervised_learning_rounds = curriculum)
+                prog_values=[("Loss", loss)]
                 if self.global_step % self.config.eval_every == 0:
-                    dev_loss, dev_MRR = self.evaluate(sess)
-                    self.write_summary(dev_loss, "dev/loss_total", summary_writer, global_step)
-                    self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, global_step)
+                    dev_loss, dev_MRR = self.evaluate(sess, i)
+                    self.write_summary(dev_loss, "dev/loss_total", summary_writer, self.global_step)
+                    self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, self.global_step)
                     if dev_loss < best_dev_loss:
                         best_dev_loss = dev_loss
-                        self.bestmodel_saver.save(sess, self.config.best_save_directory, global_step=global_step)
-                
-                if global_step % self.config.save_every ==0:
-                    self.saver.save(sess, self.config.model_save_directory, global_step=global_step)
+                        self.best_model_saver.save(sess, self.config.best_save_directory, global_step=self.global_step)
+                    prog_values.append((["Dev Loss", dev_loss]))
+                progbar.update(j+1, prog_values)
 
-    
+                if self.global_step % self.config.save_every == 0:
+                    self.saver.save(sess, self.config.model_save_directory, global_step=self.global_step)
+
+  
     def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
-        
         images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
-
         feed = {
             self.images:images,
             self.captions:captions,
@@ -199,7 +197,7 @@ class model():
         }
         loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(supervised_learning_rounds)
         optimizer = tf.train.AdamOptimizer(learning_rate = self.config.learning_rate)
-        grads, variables = optimizer.compute_gradients(self.loss)
+        grads, variables = optimizer.compute_gradients(loss)
         clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
         update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
         summary, _, global_step, loss, rewards = sess.run([self.summaries, update_op, self.global_step, loss, batch_rewards], feed_dict = feed)
@@ -222,7 +220,7 @@ class model():
         dev_batch_generator = eval_dataloader.getEvalBatch(self.config.batch_size)
         for batch in dev_batch_generator:
             true_images, _, _, _, _, _, gt_indices = batch
-            loss, preds, gen_answers, gen_questions = self.eval_on_batch(sess, batch)
+            loss, preds, _, _, _ = self.eval_on_batch(sess, batch)
             dev_loss += loss
             MRR = np.zeros([self.config.num_dialog_rounds])
             if compute_MRR:
@@ -292,17 +290,15 @@ class model():
         percentage_rank_gt = (np.array(pos_gt) + 1) / validation_data_sz  # + 1 to account for 0 indexing
         return percentage_rank_gt
 
-    def show_dialog(self, sess, image, caption, answer):
+    def show_dialog(self, sess, images, captions, caption_lengths, answers):
         feed = {
             self.images:images,
             self.captions:captions,
             self.caption_lengths: caption_lengths,
-            self.supervised_learning_rounds:0
         }
-        images, answers, questions = sess.run([self.generated_images, self.generated_answers, self.generated_questions], feed_dict = feed)
-        
-        return loss, images, answers, questions, rewards
-
+        loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(0)
+        preds, gen_answers, gen_questions = sess.run([generated_images, generated_answers, generated_questions], feed_dict=feed)
+        return preds, gen_answers, gen_questions
 
     def concatenate_q_a(self, questions, question_lengths, answers, answer_lengths):
         """
@@ -318,10 +314,19 @@ class model():
         question_answer_pairs: float of shape (batch_size, max_question_length + max_answer_length): The sequence of output vectors for every timestep
         question_answer_pair_lengths = (batch_size): The actual length of the question, answer concatenations
         """
-        batch_size = tf.shape(questions)[0]
-        stripped_question_answer_pairs = [tf.concat([questions[i,0:question_lengths[i],:], answers[i,0:answer_lengths[i],:]], axis = 1)for i in xrange(batch_size)]
         max_size = self.config.MAX_QUESTION_LENGTH + self.config.MAX_ANSWER_LENGTH
-        padded_question_answer_pairs = [tf.pad(stripped_question_answer_pairs[i], [0, max_size - tf.shape(stripped_question_answer_pairs[i])[0]]) for i in xrange(batch_size)]
+        padded_question_answer_pairs = []
+        def body(i):
+            stripped_question_answer_pair = tf.expand_dims(tf.concat([questions[i,0:question_lengths[i]],answers[i,0:answer_lengths[i]]], axis=0), axis=0)
+            num_pad = max_size - question_lengths[i] + answer_lengths[i]
+            print num_pad
+            paddings = tf.constant([[0, 0],[0]])
+            padded_question_answer_pairs.append(tf.pad(stripped_question_answer_pair, paddings))
+            return [tf.add(i, 1)]
+
+        i = tf.constant(0)
+        while_condition = lambda i: tf.less(i, tf.shape(questions)[0])
+        r = tf.while_loop(while_condition, body, [i])
         question_answer_pairs = tf.stack(padded_question_answer_pairs, axis = 0)
         question_answer_pair_lengths = tf.add(question_lengths, answer_lengths)
         return question_answer_pairs, question_answer_pair_lengths
