@@ -36,7 +36,7 @@ class AHistoryEncoder(object):
             output = tf.contrib.layers.fully_connected(images, self.image_reduced_dimension, activation_fn = None)
             return output
 
-    def generate_next_state(self, current_facts, questions, images, prev_states=None):
+    def generate_next_state(self, current_facts, questions, images, prev_states=None, reduce_image_dims=False):
         """
         Builds the graph to take in the previous state, and current fact and generates the new state
         ===================================
@@ -47,10 +47,10 @@ class AHistoryEncoder(object):
         prev_states: float of shape (batch_size, hidden_dimension) - The state/history encoding for this round of dialog
         ===================================
         OUTPUTS:
-            outputs: float of shape (batch_size, hidden_dimension + hidden_dimension + vgg_dim, hidden_dimension)
             next_states: float of shape (batch_size, hidden_dimension) - The new state/history encoding generated using the current_fact
         """
-        images = self.convert_images(images)
+        if reduce_image_dims:
+            images = self.convert_images(images)
         inputs = tf.concat([questions, images, current_facts], 1)
         if prev_states is None:
             prev_states = self.cell.zero_state(tf.shape(current_facts)[0], dtype=tf.float32)
@@ -59,4 +59,4 @@ class AHistoryEncoder(object):
                 inputs,
                 prev_states
             )
-            return next_states
+            return next_states, images

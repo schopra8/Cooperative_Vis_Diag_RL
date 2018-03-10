@@ -63,7 +63,7 @@ class model():
         """
         self.captions = tf.nn.embedding_lookup(self.embedding_matrix, self.captions)
         Q_state = self.Qbot.encode_captions(self.captions, self.caption_lengths)
-        A_state = self.Abot.encode_images_captions(self.captions, self.images, self.caption_lengths)
+        A_state, embedded_images = self.Abot.encode_images_captions(self.captions, self.images, self.caption_lengths)
         A_fact = self.Abot.encode_facts(self.captions, self.caption_lengths)
         prev_image_guess = self.Qbot.generate_image_representations(Q_state)
         image_loss = 0
@@ -83,7 +83,7 @@ class model():
                 #A-bot encodes questions
                 encoded_questions = self.Abot.encode_questions(questions)
                 #A-bot updates state
-                A_state = self.Abot.encode_state_histories(A_fact, self.images, encoded_questions, A_state)
+                A_state = self.Abot.encode_state_histories(A_fact, embedded_images, encoded_questions, A_state)
                 #Abot generates answer logits
                 answer_logits, answer_lengths = self.Abot.get_answers(A_state, supervised_training=False)
                 #Generate facts for that round of dialog
@@ -100,7 +100,7 @@ class model():
                 image_guess = self.Qbot.generate_image_representations(Q_state)
                 generated_images.append(image_guess)
                 #Calculate loss for this round
-                rewards = tf.reduce_sum(tf.square(prev_image_guess - self.images), axis = 1) - tf.reduce_sum(tf.square(image_guess - self.images), axis = 1)
+                rewards = tf.reduce_sum(tf.square(prev_image_guess - embedded_images), axis = 1) - tf.reduce_sum(tf.square(image_guess - embedded_images), axis = 1)
                 batch_rewards.append(tf.reduce_mean(rewards))
                 prev_image_guess = image_guess
 
@@ -126,7 +126,7 @@ class model():
                 #Encode the true questions
                 encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, questions))
                 #Update A state based on true question
-                A_state = self.Abot.encode_state_histories(A_fact, self.images, encoded_questions, A_state)
+                A_state = self.Abot.encode_state_histories(A_fact, embedded_images, encoded_questions, A_state)
                 # ABot Generates answers based on current state
                 answer_outputs, answer_lengths = self.Abot.get_answers(
                     A_state,
@@ -148,7 +148,7 @@ class model():
                 answer_logits, answer_order = tf.transpose(answer_outputs[0], perm=[1, 0, 2]), tf.transpose(answer_outputs[1], perm=[1, 0])
                 dialog_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits = question_logits, labels = questions)
                 dialog_loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits = answer_logits, labels = answers)
-                image_loss += tf.nn.l2_loss(image_guess - self.images)
+                image_loss += tf.nn.l2_loss(image_guess - embedded_images)
                 loss += dialog_loss + image_loss
         return loss, generated_questions, generated_answers, generated_images, batch_rewards
 
@@ -328,7 +328,7 @@ class model():
 
         i = tf.constant(0)
         while_condition = lambda i, padded_question_answer_pairs: tf.less(i, tf.shape(questions)[0])
-        r, padded_question_answer_pairs = tf.while_loop(
+        _, padded_question_answer_pairs = tf.while_loop(
             while_condition,
             body,
             [i, padded_question_answer_pairs],

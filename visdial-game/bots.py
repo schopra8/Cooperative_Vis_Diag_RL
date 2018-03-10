@@ -47,8 +47,8 @@ class DeepABot():
         batch_size = tf.shape(captions)[0]
         empty_questions = tf.zeros([batch_size, self.config.A.hidden_dims])
         encoded_captions = self.fact_encoder.generate_fact(captions, caption_lengths)
-        initial_states = self.history_encoder.generate_next_state(encoded_captions, empty_questions, images, prev_states=None)
-        return initial_states
+        initial_states, embedded_images = self.history_encoder.generate_next_state(encoded_captions, empty_questions, images, prev_states=None, reduce_image_dims=True)
+        return initial_states, embedded_images
 
     def encode_questions(self, questions):
         """Encodes questions (Question Encoder)
@@ -82,7 +82,7 @@ class DeepABot():
         Returns:
             states: encoded states that combine images, captions, question_encodings, recent_facts
         """
-        states = self.history_encoder.generate_next_state(recent_facts, question_encodings, images, prev_states)
+        states, _ = self.history_encoder.generate_next_state(recent_facts, question_encodings, images, prev_states)
         return states
 
     def get_answers(self, states, true_answers=None, true_answer_lengths=None, supervised_training=False):
