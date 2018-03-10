@@ -3,7 +3,7 @@ import os, sys
 from modules.a_history_encoder import AHistoryEncoder
 from modules.answer_decoder import AnswerDecoder
 from modules.fact_encoder import FactEncoder
-from modules.feature_regression import FeatureRegressor
+from modules.feature_regressor import FeatureRegressor
 from modules.q_history_encoder import QHistoryEncoder
 from modules.question_decoder import QuestionDecoder
 from modules.question_encoder import QuestionEncoder

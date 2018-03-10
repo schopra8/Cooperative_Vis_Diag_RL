@@ -143,7 +143,7 @@ class model():
                 A_fact = self.Abot.encode_facts(facts, fact_lengths)
                 Q_fact = self.Qbot.encode_facts(facts, fact_lengths)
                 #Update state histories using current facts
-                Q_state = self.Qbot.encode_state_histories(Q_state, facts, fact_lengths)
+                Q_state = self.Qbot.encode_state_histories(facts, Q_state)
                 #Guess image
                 image_guess = self.Qbot.generate_image_representations(Q_state)
                 #### Loss for supervised training
@@ -159,7 +159,7 @@ class model():
         pass
 
     def train(self, sess, num_epochs = 400, batch_size=20):
-        summary_writer = tf.summary.FileWriter(self.config.model_save_directory, session.graph)
+        summary_writer = tf.summary.FileWriter(self.config.model_save_directory, sess.graph)
         best_dev_loss = float('Inf')
         curriculum = 0
         for i in xrange(num_epochs):
@@ -173,15 +173,15 @@ class model():
             for batch in batch_generator:
                 loss = self.train_on_batch(sess, batch, summary_writer, supervised_learning_rounds = curriculum)
                 if self.global_step % self.config.eval_every == 0:
-                    dev_loss, dev_MRR = self.evaluate(sess)
-                    self.write_summary(dev_loss, "dev/loss_total", summary_writer, global_step)
-                    self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, global_step)
+                    dev_loss, dev_MRR = self.evaluate(sess, i)
+                    self.write_summary(dev_loss, "dev/loss_total", summary_writer, self.global_step)
+                    self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, self.global_step)
                     if dev_loss < best_dev_loss:
                         best_dev_loss = dev_loss
-                        self.bestmodel_saver.save(sess, self.config.best_save_directory, global_step=global_step)
+                        self.best_model_saver.save(sess, self.config.best_save_directory, global_step=self.global_step)
                 
-                if global_step % self.config.save_every ==0:
-                    self.saver.save(sess, self.config.model_save_directory, global_step=global_step)
+                if self.global_step % self.config.save_every == 0:
+                    self.saver.save(sess, self.config.model_save_directory, global_step=self.global_step)
 
     
     def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
@@ -199,7 +199,7 @@ class model():
         }
         loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(supervised_learning_rounds)
         optimizer = tf.train.AdamOptimizer(learning_rate = self.config.learning_rate)
-        grads, variables = optimizer.compute_gradients(self.loss)
+        grads, variables = optimizer.compute_gradients(loss)
         clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
         update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
         summary, _, global_step, loss, rewards = sess.run([self.summaries, update_op, self.global_step, loss, batch_rewards], feed_dict = feed)
@@ -222,7 +222,7 @@ class model():
         dev_batch_generator = eval_dataloader.getEvalBatch(self.config.batch_size)
         for batch in dev_batch_generator:
             true_images, _, _, _, _, _, gt_indices = batch
-            loss, preds, gen_answers, gen_questions = self.eval_on_batch(sess, batch)
+            loss, preds, _, _, _ = self.eval_on_batch(sess, batch)
             dev_loss += loss
             MRR = np.zeros([self.config.num_dialog_rounds])
             if compute_MRR:
@@ -292,16 +292,15 @@ class model():
         percentage_rank_gt = (np.array(pos_gt) + 1) / validation_data_sz  # + 1 to account for 0 indexing
         return percentage_rank_gt
 
-    def show_dialog(self, sess, image, caption, answer):
-        feed = {
+    def show_dialog(self, sess, images, captions, caption_lengths, answers):
+		feed = {
             self.images:images,
             self.captions:captions,
             self.caption_lengths: caption_lengths,
-            self.supervised_learning_rounds:0
         }
-        images, answers, questions = sess.run([self.generated_images, self.generated_answers, self.generated_questions], feed_dict = feed)
-        
-        return loss, images, answers, questions, rewards
+		loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(0)
+        preds, gen_answers, gen_questions = sess.run([generated_images, generated_answers, generated_questions], feed_dict = feed)
+        return preds, gen_answers, gen_questions
 
 
     def concatenate_q_a(self, questions, question_lengths, answers, answer_lengths):
