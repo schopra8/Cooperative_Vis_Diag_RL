@@ -61,6 +61,8 @@ class QuestionDecoder(object):
         """
         with tf.variable_scope(self.scope):
             if supervised_training:
+                print tf.shape(true_questions)
+                print tf.shape(true_question_lengths)
                 helper = tf.contrib.seq2seq.TrainingHelper(true_questions, true_question_lengths, self.scope)
             else:
                 start_tokens = tf.tile(self.start_token_embedding, [tf.shape(states)[0]])
