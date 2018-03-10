@@ -23,8 +23,6 @@ class model():
             self.embedding_matrix
         )
         self.add_placeholders()
-        # self.add_all_ops()
-        # self.add_update_op()
         self.best_model_saver = tf.train.Saver(tf.global_variables(), max_to_keep=1)
         self.summaries = tf.summary.merge_all()
         self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.config.keep)
@@ -37,14 +35,13 @@ class model():
         """
         Adds placeholders needed for training
         """
-        self.images = tf.placeholder(tf.float32, shape = [None, self.config.IMG_REP_DIM])
+        self.images = tf.placeholder(tf.float32, shape = [None, self.config.VGG_IMG_REP_DIM])
         self.captions = tf.placeholder(tf.int32, shape = [None, self.config.MAX_CAPTION_LENGTH])
         self.caption_lengths = tf.placeholder(tf.int32, shape = [None])
         self.true_questions = tf.placeholder(tf.int32, shape = [None, self.config.num_dialog_rounds, self.config.MAX_QUESTION_LENGTH])
         self.true_answers = tf.placeholder(tf.int32, shape = [None, self.config.num_dialog_rounds, self.config.MAX_ANSWER_LENGTH])
         self.true_question_lengths = tf.placeholder(tf.int32, shape = [None, self.config.num_dialog_rounds])
         self.true_answer_lengths = tf.placeholder(tf.int32, shape = [None, self.config.num_dialog_rounds])
-        # self.supervised_learning_rounds = tf.placeholder(tf.int32, shape = [])
 
     
     def run_dialog(self, supervised_learning_rounds):
@@ -199,12 +196,11 @@ class model():
         }
         loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(supervised_learning_rounds)
         optimizer = tf.train.AdamOptimizer(learning_rate = self.config.learning_rate)
+        grads_vars = optimizer.compute_gradients(loss)
         grads, variables = map(list,zip(*optimizer.compute_gradients(loss)))
-        print grads
-        print variables
-        clipped_grads = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
-        print clipped_grads
-        update_op = optimizer.apply_gradients(zip(clipped_grads, variables), global_step = self.global_step)
+        clipped_grads, _ = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
+        clipped_grads_vars = zip(clipped_grads, variables)
+        update_op = optimizer.apply_gradients(clipped_grads_vars, global_step = self.global_step)
         summary, _, global_step, loss, rewards = sess.run([self.summaries, update_op, self.global_step, loss, batch_rewards], feed_dict = feed)
         summary_writer.add_summary(summary, global_step)
         self.write_summary(loss, 'train_loss', summary_writer, self.global_step)

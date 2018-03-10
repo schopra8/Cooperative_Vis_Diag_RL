@@ -14,6 +14,7 @@ class Config():
     MAX_QUESTION_LENGTH = 22
     MAX_ANSWER_LENGTH = 22
     VOCAB_SIZE = 8845 + 2
+    VGG_IMG_REP_DIM = 4096
     IMG_REP_DIM = 300
     EMBEDDING_SIZE = 300
     learning_rate = 1e-3
