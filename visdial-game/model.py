@@ -158,11 +158,13 @@ class model():
         #batch = (images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_index)
         pass
 
-    def train(self, sess, num_epochs = 400, batch_size=20):
+    def train(self, sess, num_epochs=400, batch_size=20):
         summary_writer = tf.summary.FileWriter(self.config.model_save_directory, sess.graph)
         best_dev_loss = float('Inf')
         curriculum = 0
         for i in xrange(num_epochs):
+            num_batches = self.config.NUM_TRAINING_SAMPLES / batch_size + 1
+            progbar = tf.keras.utils.Progbar(target=num_batches)
             if i<15:
                 curriculum = 10
             else:
@@ -170,8 +172,9 @@ class model():
             if curriculum <0:
                 curriculum = 0
             batch_generator = self.dataloader.getTrainBatch(self.config.batch_size)
-            for batch in batch_generator:
+            for j, batch in enumerate(batch_generator):
                 loss = self.train_on_batch(sess, batch, summary_writer, supervised_learning_rounds = curriculum)
+                prog_values=[("Loss", loss)]
                 if self.global_step % self.config.eval_every == 0:
                     dev_loss, dev_MRR = self.evaluate(sess, i)
                     self.write_summary(dev_loss, "dev/loss_total", summary_writer, self.global_step)
@@ -179,7 +182,9 @@ class model():
                     if dev_loss < best_dev_loss:
                         best_dev_loss = dev_loss
                         self.best_model_saver.save(sess, self.config.best_save_directory, global_step=self.global_step)
-                
+                    prog_values.append((["Dev Loss", dev_loss]))
+                progbar.update(j+1, prog_values)
+
                 if self.global_step % self.config.save_every == 0:
                     self.saver.save(sess, self.config.model_save_directory, global_step=self.global_step)
 
