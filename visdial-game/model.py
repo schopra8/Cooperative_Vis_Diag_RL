@@ -203,7 +203,6 @@ class model():
   
     def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
         images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
-        print "Training on batch"
         feed = {
             self.images:images,
             self.captions:captions,
@@ -213,9 +212,7 @@ class model():
             self.true_answers:true_answers,
             self.true_answer_lengths: true_answer_lengths,
         }
-        print true_questions.shape
         summary, _, global_step, loss = sess.run([self.summaries, self.update_op, self.global_step, self.loss], feed_dict = feed)
-        print "Done"
         summary_writer.add_summary(summary, global_step)
         self.write_summary(loss, 'train_loss', summary_writer, global_step)
         return loss
