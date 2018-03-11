@@ -63,18 +63,21 @@ class AnswerDecoder(object):
         with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             if supervised_training:
                 embedded_answers = self.embedding_lookup(true_answers)
-                helper = tf.contrib.seq2seq.TrainingHelper(embedded_answers, true_answer_lengths, self.scope)
-            else:
-                start_tokens = tf.tile(self.start_token_embedding, [tf.shape(states)[0]])
-                helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=self.embedding_lookup, start_tokens=start_tokens, end_token=self.end_token_idx)
-            decoder = tf.contrib.seq2seq.BasicDecoder(
+                helper = tf.contrib.seq2seq.TrainingHelper(embedded_answers, true_answer_lengths, time_major = False)
+                decoder = tf.contrib.seq2seq.BasicDecoder(
                 cell=self.cell,
                 helper=helper,
                 initial_state=states,
                 output_layer=self.vocab_logits_layer,
-            )
+                )
             # final_outputs = (batch_size, max_sequence_length, hidden_size)
             # final_sequence_lengths = (batch_size)
-            final_outputs, _, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
-                                                        impute_finished=True, maximum_iterations=self.max_answer_length)
-            return final_outputs, final_sequence_lengths
+                final_outputs, _, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
+                                                        impute_finished=True)
+                return final_outputs.rnn_output, final_sequence_lengths
+            else:
+                start_tokens = tf.tile(self.start_token_embedding, [tf.shape(states)[0]])
+                helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=self.embedding_lookup, start_tokens=start_tokens, end_token=self.end_token_idx)
+                final_outputs, _, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
+                                                        impute_finished=True, maximum_iterations=sef.config.max_answer_length)
+                return final_outputs.rnn_output, final_sequence_lengths
