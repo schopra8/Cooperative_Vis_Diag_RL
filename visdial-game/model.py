@@ -117,12 +117,10 @@ class model():
             batch_rewards = tf.reduce_mean(rewards)
 
             #### CHANGE HERE FOR UPDATING ONLY SINGLE BOT
-            print question_logits
-            print answer_logits
             prob_questions = tf.reduce_max(tf.nn.softmax(question_logits), axis = 2)
             prob_answers = tf.reduce_max(tf.nn.softmax(answer_logits), axis = 2)
-            negative_log_prob_exchange = -tf.log(prob_questions)-tf.log(prob_answers)
-            loss = tf.reduce_mean(negative_log_prob_exchange*rewards)
+            negative_log_prob_exchange = -tf.reduce_sum(tf.log(prob_questions), axis=1) - tf.reduce_sum(tf.log(prob_answers), axis=1)
+            loss = tf.reduce_sum(negative_log_prob_exchange*rewards)
 
             return [loss, Q_state, A_state, A_fact, generated_questions, generated_answers, generated_images, batch_rewards]
 
@@ -203,20 +201,24 @@ class model():
                 curriculum = 0
             batch_generator = self.dataloader.getTrainBatch(self.config.batch_size)
             for j, batch in enumerate(batch_generator):
-                loss = self.train_on_batch(sess, batch, summary_writer, supervised_learning_rounds = curriculum)
+                loss, global_step = self.train_on_batch(sess, batch, summary_writer, supervised_learning_rounds = curriculum)
                 prog_values=[("Loss", loss)]
-                if self.global_step % self.config.eval_every == 0:
+                if global_step % self.config.eval_every == 0:
                     dev_loss, dev_MRR = self.evaluate(sess, i)
-                    self.write_summary(dev_loss, "dev/loss_total", summary_writer, self.global_step)
-                    self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, self.global_step)
+                    self.write_summary(dev_loss, "dev/loss_total", summary_writer, global_step)
+                    self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, global_step)
                     if dev_loss < best_dev_loss:
+                        print "New Best Model! Saving Best Model Weights!"
                         best_dev_loss = dev_loss
-                        self.best_model_saver.save(sess, self.config.best_save_directory, global_step=self.global_step)
+                        self.best_model_saver.save(sess, self.config.best_save_directory, global_step=global_step)
+                        print "Done Saving Model Weights!"
                     prog_values.append((["Dev Loss", dev_loss]))
                 progbar.update(j+1, prog_values)
 
-                if self.global_step % self.config.save_every == 0:
-                    self.saver.save(sess, self.config.model_save_directory, global_step=self.global_step)
+                if global_step % self.config.save_every == 0:
+                    print "Saving Model Weights!"
+                    self.saver.save(sess, self.config.model_save_directory, global_step=global_step)
+                    print "Done Saving Model Weights!"
 
   
     def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
@@ -234,7 +236,7 @@ class model():
         summary, _, global_step, loss = sess.run([self.summaries, self.update_op, self.global_step, self.loss], feed_dict = feed)
         summary_writer.add_summary(summary, global_step)
         self.write_summary(loss, 'train_loss', summary_writer, global_step)
-        return loss
+        return loss, global_step
     
     def write_summary(self, value, tag, summary_writer, global_step):
         """ Write a single summary value to tensorboard
