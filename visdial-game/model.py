@@ -252,7 +252,7 @@ class model():
         dev_loss = 0
         dev_batch_generator = eval_dataloader.getEvalBatch(self.config.batch_size)
         for batch in dev_batch_generator:
-            true_images, _, _, _, _, _, gt_indices = batch
+            true_images, _, _, _, _, _, _, gt_indices = batch
             loss, preds, _, _, _ = self.eval_on_batch(sess, batch)
             dev_loss += loss
             MRR = np.zeros([self.config.num_dialog_rounds])
