@@ -77,7 +77,7 @@ class QuestionDecoder(object):
                                                         impute_finished=True)
                 return final_outputs.rnn_output, true_question_lengths
             else:
-                start_tokens = tf.ones(tf.shape(states)[0], dtype=tf.int32) * self.start_token_idx
+                start_tokens = tf.ones([tf.shape(states)[0]], dtype=tf.int32) * self.start_token_idx
                 helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=self.embedding_lookup, start_tokens=start_tokens, end_token=self.end_token_idx)
                 decoder = tf.contrib.seq2seq.BasicDecoder(
                     cell=self.cell,
