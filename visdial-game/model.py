@@ -195,7 +195,7 @@ class model():
         for i in xrange(num_epochs):
             num_batches = self.config.NUM_TRAINING_SAMPLES / batch_size + 1
             progbar = tf.keras.utils.Progbar(target=num_batches)
-            if i<15:
+            if i<self.config.SL_EPOCHS:
                 curriculum = 10
             else:
                 curriculum -= 1
