@@ -8,13 +8,13 @@ class QuestionDecoder(object):
         Previous state: (batch_size, hidden_dimension)
         Question: (batch_size, question_length, indices)
     """
-    def __init__(self, hidden_dimension, start_token_embedding, end_token_idx, max_question_length, vocabulary_size, embedding_matrix, scope):
+    def __init__(self, hidden_dimension, start_token_idx, end_token_idx, max_question_length, vocabulary_size, embedding_matrix, scope):
         """
         Initialization function
         ====================
         INPUTS:
         hidden_dimension: int - shape of the hidden state for the LSTM/RNN cells used
-        start_token_embedding : float of shape (embedding_size) - word embedding of the start_token_embedding
+        start_token_idx : 
         end_token_idx: int of index referring to the end token within our vocabulary
         max_question_length : int - length of longest question
         vocabulary_size: int - size of vocabulary (including start and end tokens)
@@ -23,7 +23,7 @@ class QuestionDecoder(object):
         ====================
         """
         self.hidden_dimension = hidden_dimension
-        self.start_token_embedding = start_token_embedding
+        self.start_token_idx = start_token_idx
         self.end_token_idx = end_token_idx
         self.max_question_length = max_question_length
         self.vocabulary_size = vocabulary_size
@@ -65,10 +65,10 @@ class QuestionDecoder(object):
                 embedded_questions = self.embedding_lookup(true_questions)
                 helper = tf.contrib.seq2seq.TrainingHelper(embedded_questions, true_question_lengths, time_major = False)
                 decoder = tf.contrib.seq2seq.BasicDecoder(
-                cell=self.cell,
-                helper=helper,
-                initial_state=states,
-                output_layer=self.vocab_logits_layer,
+                    cell=self.cell,
+                    helper=helper,
+                    initial_state=states,
+                    output_layer=self.vocab_logits_layer,
                 )
             #final sequence of outputs
             #final_outputs = (batch_size, max_sequence_length, hidden_size)
@@ -77,8 +77,14 @@ class QuestionDecoder(object):
                                                         impute_finished=True)
                 return final_outputs.rnn_output, true_question_lengths
             else:
-                start_tokens = tf.tile(self.start_token_embedding, [tf.shape(states)[0]])
+                start_tokens = tf.ones(tf.shape(states)[0], dtype=tf.int32) * self.start_token_idx
                 helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=self.embedding_lookup, start_tokens=start_tokens, end_token=self.end_token_idx)
+                decoder = tf.contrib.seq2seq.BasicDecoder(
+                    cell=self.cell,
+                    helper=helper,
+                    initial_state=states,
+                    output_layer=self.vocab_logits_layer,
+                )
                 final_outputs, _, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
-                                                        impute_finished=True, maximum_iterations = self.config.max_question_length)
+                                                        impute_finished=True, maximum_iterations = self.max_question_length)
                 return final_outputs.rnn_output, final_sequence_lengths
