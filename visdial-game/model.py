@@ -251,7 +251,9 @@ class model():
                             'data_img.h5', ['val'])
         dev_loss = 0
         dev_batch_generator = eval_dataloader.getEvalBatch(self.config.batch_size)
-        for batch in dev_batch_generator:
+        num_batches = self.config.NUM_VALIDATION_SAMPLES / self.config.batch_size + 1
+        progbar = tf.keras.utils.Progbar(target=num_batches)
+        for i, batch in enumerate(dev_batch_generator):
             true_images, _, _, _, _, _, _, gt_indices = batch
             loss, preds, _, _, _ = self.eval_on_batch(sess, batch)
             dev_loss += loss
@@ -260,6 +262,7 @@ class model():
                 for round_number, p in enumerate(preds):
                     percentage_rank_gt = self.compute_mrr(p, gt_indices, true_images, round_number, epoch)
                     MRR[round_number] += tf.reduce_mean(percentage_rank_gt)
+            progbar.update(j+1)
         return dev_loss, MRR
 
     def eval_on_batch(self, sess, batch):
