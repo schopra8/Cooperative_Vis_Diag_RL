@@ -126,6 +126,8 @@ class DataLoader(object):
 
     def getEvalBatch(self, batch_size):
         size = self.num_dialogs['val']
+        print size
+        size = size - 1 # Crashed with val size
 
         for i in xrange(0, size, batch_size):
             inds = range(i%size,(i%size+batch_size))
