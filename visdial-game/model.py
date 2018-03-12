@@ -262,7 +262,7 @@ class model():
                 for round_number, p in enumerate(preds):
                     percentage_rank_gt = self.compute_mrr(p, gt_indices, true_images, round_number, epoch)
                     MRR[round_number] += tf.reduce_mean(percentage_rank_gt)
-            progbar.update(j+1)
+            progbar.update(i+1)
         return dev_loss, MRR
 
     def eval_on_batch(self, sess, batch):
