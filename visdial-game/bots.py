@@ -25,7 +25,7 @@ class DeepABot():
             )
             self.answer_decoder = AnswerDecoder(
                 hidden_dimension=self.config.A.hidden_dims,
-                start_token_embedding=start_token_embedding,
+                start_token_idx=self.config.START_TOKEN_IDX,
                 end_token_idx=self.config.END_TOKEN_IDX,
                 max_answer_length=self.config.MAX_ANSWER_LENGTH,
                 vocabulary_size=self.config.VOCAB_SIZE,
@@ -113,7 +113,7 @@ class DeepQBot():
             self.fact_encoder = FactEncoder(self.config.Q.hidden_dims, scope)
             self.question_decoder = QuestionDecoder(
                 hidden_dimension=self.config.Q.hidden_dims,
-                start_token_embedding=start_token_embedding,
+                start_token_idx=self.config.START_TOKEN_IDX,
                 end_token_idx=self.config.END_TOKEN_IDX,
                 max_question_length=self.config.MAX_QUESTION_LENGTH,
                 vocabulary_size=self.config.VOCAB_SIZE,

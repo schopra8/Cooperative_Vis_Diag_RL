@@ -5,7 +5,8 @@ class Config():
     # Language Parametrs
     NUM_TRAINING_SAMPLES = 82783
     NUM_VALIDATION_SAMPLES = 40504
-    NUM_EPOCHS = 15
+    NUM_EPOCHS = 400
+    SL_EPOCHS = 15
     START_TOKEN = '<GO>'
     END_TOKEN = '<STOP>'
     START_TOKEN_IDX = 8846
