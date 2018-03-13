@@ -206,7 +206,7 @@ class model():
                 if global_step % self.config.eval_every == 0:
                     dev_loss, dev_MRR = self.evaluate(sess, i)
                     self.write_summary(dev_loss, "dev/loss_total", summary_writer, global_step)
-                    self.write_summary(dev_MRR, "dev/MRR_total", summary_writer, global_step)
+                    self.write_summary(tf.reduce_mean(dev_MRR), "dev/MRR_average", summary_writer, global_step)
                     if dev_loss < best_dev_loss:
                         print "New Best Model! Saving Best Model Weights!"
                         best_dev_loss = dev_loss
