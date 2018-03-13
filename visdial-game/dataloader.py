@@ -121,7 +121,7 @@ class DataLoader(object):
         ordering = np.random.permutation(size)
 
         for i in xrange(0, size, batch_size):
-            inds = ordering[i%size:(i%size+batch_size)]
+            inds = ordering[i:i+batch_size]
             yield self.getIndexData(inds, 'train')
 
     def getEvalBatch(self, batch_size):
@@ -130,7 +130,7 @@ class DataLoader(object):
         size = size - 1 # Crashed with val size
 
         for i in xrange(0, size, batch_size):
-            inds = range(i%size,(i%size+batch_size))
+            inds = range(i,min(size,i+batch_size))
             yield self.getIndexData(inds, 'val')
 
     def getIndexData(self, inds, dsplit):
@@ -153,10 +153,18 @@ class DataLoader(object):
 if __name__ == '__main__':
     dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
                                                         'data_img.h5', ['train'], verbose=True)
-    batch_generator = dataloader.getTrainBatch(5)
+    batch_generator = dataloader.getTrainBatch(20)
+    count = 0
     for batch in batch_generator:
-        print batch
+        if count % 100 == 0:
+            print count
+        count += 1
 
-    batch_generator = dataloader.getTrainBatch(5)
-    for batch in batch_generator:
-        print batch
+    # eval_dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
+    #                                                     'data_img.h5', ['val'], verbose=True)
+    # batch_generator = eval_dataloader.getEvalBatch(20)
+    # count = 0
+    # for batch in batch_generator:
+    #     if count % 100 == 0:
+    #         print count
+    #     count += 1
