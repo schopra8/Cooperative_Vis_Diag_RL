@@ -1,238 +1,103 @@
 import os, sys
-sys.path.append('../')
-
 import numpy as np
-
 from collections import defaultdict
 
-from models.qbot import QBot
-from models.abot import ABot
-
-class SyntheticQBot(QBot):
+class SyntheticQBot(object):
     def __init__(self, config):
-        self.Q = defaultdict(lambda: np.zeros(config.num_actions))
-        self.Q_regression = defaultdict(lambda: np.zeros(config.num_classes))
-
-        # {epsilon, num_actions, num_classes}
         self.config = config
+        self.Q = defaultdict(lambda: np.zeros(self.config.num_actions))
+        self.Q_regression = defaultdict(lambda: np.zeros(self.config.num_classes))
+        self.states = None
 
-    def encode_captions(self, captions):
-        """Encodes captions.
-
-        Args:
-            captions: [Batch Size, Caption Encoding Dimensions]
-        Returns:
-            captions: encoded captions
+    def set_initial_states(self, game_types):
         """
-        return [((c,)) for c in captions] # [((c1)), ((c2))]
-
-    def encode_facts(self, questions, answers):
-        """Encodes questions and answers into facts (Fact Encoder)
-
-        Args:
-            questions [Batch Size]: List of ints, where int represents question asked
-                                      by the Q-Bot in the most recent round
-            answers [Batch Size]: List of ints, where int represents an answer by the A-Bot
-                                      to the questions
-        Returns:
-            fact (tuple): An encoded fact that combines the question and answer
+            Reset bot states and initialize to the game types.
         """
-        return zip(questions, answers)
+        self.states = [((game_type,),) for game_type in game_types] 
 
-    def encode_state_histories(self, prev_states, facts):
-        """Encodes the state as a combination of facts (State/History Encoder)
-
-        Args:
-            prev_state (list of tuples) [Batch Size]
-            facts (list of tuples) [Batch Size]
-        Returns:
-            state (list of tuples) [Batch Size]: states that combines the current fact and previous facts
+    def decode_questions(self, epsilon):
         """
-        new_states = [d_state + facts[i] for i, d_state in enumerate(prev_states)]
-        return new_states
-
-    def decode_questions(self, states):
-        """Decodes (generates) questions given the current states (Question Decoder)
-
-        Args:
-            states (list of tuples) [Batch Size]: encoded states
-        Returns:
-            questions: (list of ints) [Batch Size]
+            Generate question. Optimal question selected with epsilon probability.
         """
-        questions = [np.argmax(self.Q[state]) for state in states]
-        return questions
+        def gen_question(state, epsilon):
+            optimal_question = np.argmax(self.Q[state])
 
-    def generate_image_predictions(self, states):
-        """Guesses an image given the current state (Feature Regression Network)
-
-        Args:
-            states (list of tuples) [Batch Size]: encoded states
-        Returns:
-            image_representations [Batch Size, img_dim]: representation of the predicted images
-        """
-        predictions = [np.argmax(self.Q_regression[state]) for state in states]
-        return predictions
-
-    def get_q_values(self, states):
-        """Returns all Q-values for all actions given state
-
-        Args:
-            states (list of tuples) [Batch Size]: encoded states
-        Returns:
-            q_values (list of maps) [Batch Size]: representations of actions to expected return values
-        """
-        q_values = [self.Q[state] for state in states]
-        return q_values
-
-    def get_questions(self, states, epsilon=None):
-        """Returns questions according to some exploration policy given encoded states
-
-        Args:
-            state: encoded states [Batch Size, 1]
-        Returns:
-            questions: questions that Q Bot will ask [Batch Size, 1]
-        """
-        if epsilon is None:
-            epsilon = self.config.epsilon_test
-        optimal_questions = self.decode_questions(states)
-        def get_question(optimal_question, epsilon):
-            if np.random.rand() > epsilon:
-                # print 'greedy'
+            if np.random.rand() <= epsilon:
                 return optimal_question
             else:
-                return np.random.choice(self.config.num_actions)
-        questions = [get_question(optimal_question, epsilon) for optimal_question in optimal_questions]
-        # print states[0]
-        # print questions[0]
-        return questions
+                suboptimal_question = np.random.choice(self.config.num_actions)
+                while suboptimal_question == optimal_question:
+                    suboptimal_question = np.random.choice(self.config.num_actions)
+                return suboptimal_question
+        return [gen_question(state, epsilon) for state in self.states]
 
-    def get_image_predictions(self, states, epsilon=None):
-        """Returns questions according to some exploration policy given encoded states
-
-        Args:
-            state: encoded states [Batch Size, 1]
-        Returns:
-            questions: questions that Q Bot will ask [Batch Size, 1]
+    def update_states(self, questions, answers):
         """
-        optimal_image_predictions = self.generate_image_predictions(states)
-        if epsilon is None:
-            epsilon = self.config.epsilon_test
-        def get_image_prediction(optimal_image_prediction, epsilon):
-            if np.random.rand() > epsilon:
-                # print 'greedy'
-                return optimal_image_prediction
+            Update state, with question answer tuple.
+        """
+        for i in xrange(len(questions)):
+            q = questions[i]
+            a = answers[i]
+            self.states[i] += ((q, a),)
+
+    def generate_image_predictions(self, epsilon):
+        """
+            Guesses an image given the current state (Feature Regression Network)
+        """
+        def gen_image_prediction(state, epsilon):
+            optimal_prediction = np.argmax(self.Q_regression[state])
+
+            if np.random.rand() <= epsilon:
+                return optimal_prediction
             else:
-                return np.random.choice(self.config.num_classes)
-        image_predictions = [get_image_prediction(optimal_image_prediction, epsilon)
-                                for optimal_image_prediction in optimal_image_predictions]
-        # print states[0]
-        # print image_predictions[0]
-        return image_predictions
+                suboptimal_prediction = np.random.choice(self.config.num_actions)
+                while suboptimal_prediction == optimal_prediction:
+                    suboptimal_prediction = np.random.choice(self.config.num_actions)
+                return suboptimal_prediction
+        return [gen_image_prediction(state, epsilon) for state in self.states]
 
-class SyntheticABot(ABot):
+class SyntheticABot(object):
     def __init__(self, config):
-        self.Q = defaultdict(lambda: np.zeros(config.num_actions))
-        # {epsilon, num_actions}
         self.config = config
+        self.Q = defaultdict(lambda: np.zeros(self.config.num_actions))
+        self.states = None
 
-    def encode_images_captions(self, images, captions):
-        """Encodes the images and the captions into the states
-
-        Args:
-            images [Batch Size, Image] : The images for the dialog
-            captions [Batch Size, Caption] : Gives the captions for the current round of dialog
-        Return:
-            encoded_im_cap = [((Image, Caption)), ...]
+    def set_initial_states(self, game_types, images, questions):
         """
-        encoded_im_cap = zip(images, captions)
-        return [((im_cap,)) for im_cap in encoded_im_cap]
-
-    def encode_questions(self, questions):
-        """Encodes questions (Question Encoder)
-
-        Args:
-            questions: questions that the Q-Bot asked [Batch Size, 1]
-        Returns:
-            question_encodings: encoding of the questions [Batch Size,]
+            Reset bot state and initialize to the game type.
         """
-        return questions
+        self.states = []
+        for i in xrange(len(game_types)):
+            game_type = game_types[i]
+            image = images[i]
+            question = questions[i]
+            self.states.append(((game_type, image, question),))
 
-    def encode_facts(self, questions, answers):
-        """Encodes questions and answers into a fact (Fact Encoder)
-
-        Args:
-            questions: questions asked by the Q-Bot in the most recent round [Batch Size, 1]
-            answers: answers given by the A-Bot in response to the questions [Batch Size, 1]
-        Returns:
-            facts: encoded facts that combine the images, captions, questions, and answers
+    def decode_answers(self, epsilon):
         """
-        facts = zip(questions, answers)
-        return facts
-
-    def encode_state_histories(self, images, question_encodings, recent_facts, prev_states):
-        """Encodes states as a combination of facts (State/History Encoder)
-
-        Args:
-            question_encodings: encoded questions [Batch Size, 1]
-            facts: encoded facts [Batch Size, 1]
-        Returns:
-            state: encoded states that combine question_encodings and facts
+            Generate answers. Optimal answer selected with epsilon probability.
         """
-        new_states = zip(question_encodings, recent_facts)
-        histories = [state + new_states[i] for i, state in enumerate(prev_states)]
-        return histories
+        def gen_answer(state, epsilon):
+            optimal_answer = np.argmax(self.Q[state])
 
-    def decode_answers(self, states):
-        """Generates an answer given the current state s(Answer Decoder)
+            # Don't just default to first indexed element, if all value are 0
+            if self.Q[state][optimal_answer] == 0:
+                optimal_answer = np.random.choice(self.config.num_actions)
 
-        Args:
-            states: encoded states
-        Returns:
-            answer: answers
-        """
-        answers = [np.argmax(self.Q[state]) for state in states]
-        return answers
-
-    def get_q_values(self, states):
-        """Returns all Q-values for all actions given state
-
-        Args:
-            states: encoded states
-        Returns:
-            q_values: A representation of action to expected value
-        """
-        q_values = [self.Q[state] for state in states]
-        return q_values
-
-    def get_answers(self, states, epsilon = None):
-        """Returns answers according to some exploration policy given encoded states
-
-        Args:
-            state: encoded states [Batch Size, 1]
-        Returns:
-            answers: answers that A Bot will provide [Batch Size, 1]
-        """
-        if epsilon is None:
-            epsilon = self.config.epsilon_test
-        optimal_answers = self.decode_answers(states)
-        def get_answer(optimal_answer, epsilon):
-            if np.random.rand() > epsilon:
+            if np.random.rand() <= epsilon:
                 return optimal_answer
             else:
-                return np.random.choice(self.config.num_actions)
-        answers = [get_answer(optimal_answer, epsilon) for optimal_answer in optimal_answers]
-        return answers
+                suboptimal_answer = np.random.choice(self.config.num_actions)
+                while suboptimal_answer == optimal_answer:
+                    suboptimal_answer = np.random.choice(self.config.num_actions)
+                return suboptimal_answer
+        return [gen_answer(state, epsilon) for state in self.states]
 
-
-if __name__ == '__main__':
-    q_config = {
-        'epsilon': 0.6,
-        'num_actions': 3,
-        'num_classes': 144
-    }
-    qbot = SyntheticQBot(q_config)
-    a_config = {
-        'epsilon': 0.6,
-        'num_actions': 4
-    }
-    abot = SyntheticABot(a_config)
+    def update_states(self, prev_answers, questions):
+        """
+            Update state, with prev_answers, questions tuple.
+        """
+        for i in xrange(len(prev_answers)):
+            prev_answer = prev_answers[i]
+            question = questions[i]
+            self.states[i] += ((prev_answer, question),)

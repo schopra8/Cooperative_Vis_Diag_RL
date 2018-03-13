@@ -1,14 +1,13 @@
 
 import numpy as np
 
-
 """Parameters for synthetic data
 """
 num_colors = 4
 num_shapes = 4
 num_fills = 4
 save_type = '%d'
-num_captions = 6
+game_types = 6
 
 #Data generation
 color = np.arange(num_colors)+4
@@ -22,10 +21,10 @@ data=[]
 for i in range(num_fills):
 	for j in range(len(shape_color)):
 		data.append(np.append(shape_color[j],i+8))
-captions = np.arange(num_captions)
+captions = np.arange(game_types)
 caption_lookup = {0: [0,1], 1: [0,2], 2:[1,0], 3:[1,2], 4: [2,0], 5:[2,1]}
 data=np.asarray(data)
-data = np.concatenate([np.repeat(data,num_captions, axis = 0),np.expand_dims(np.tile(captions.T,data.shape[0]),1)], axis = 1)
+data = np.concatenate([np.repeat(data,game_types, axis = 0),np.expand_dims(np.tile(captions.T,data.shape[0]),1)], axis = 1)
 images = data[:,:3]
 captions = data[:,3]
 labels= np.asarray([images[i,caption_lookup[captions[i]]] for i in xrange(data.shape[0])])
