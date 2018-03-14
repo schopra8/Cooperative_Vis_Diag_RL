@@ -72,7 +72,7 @@ class SyntheticABot(object):
             game_type = game_types[i]
             image = images[i]
             question = questions[i]
-            self.states.append(((game_type, image, question),))
+            self.states.append(((image, question),))
 
     def decode_answers(self, epsilon):
         """

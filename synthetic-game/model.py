@@ -3,8 +3,9 @@ from collections import defaultdict
 from bots import SyntheticQBot
 from bots import SyntheticABot
 import math, os
-# import matplotlib.pyplot as plt
-# import scipy.signal as sig
+import json
+import matplotlib.pyplot as plt
+import scipy.signal as sig
 
 # import pdb
 
@@ -254,6 +255,9 @@ class Dialog_Bots(object):
 				self.evaluate(test_minibatch_generator, max_dialog_rounds)
 
 	# ----------------
+	def save(self):
+		with open('final_model.json', 'wb') as f:
+			json.dump([self.Qbot.Q_regression.to_list(), self.Qbot.Qto_list(), self.Abot.Qto_list()], f)
 	def update_epsilon(self, iteration_num):
 		if iteration_num > self.config.Q.iterations:
 			self.config.Q.epsilon = self.config.Q.epsilon_end
