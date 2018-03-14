@@ -331,15 +331,24 @@ class model():
         return percentage_rank_gt
 
     def show_dialog(self, sess, images, captions, caption_lengths, answers):
-        pass
-        # feed = {
-        #     self.images:images,
-        #     self.captions:captions,
-        #     self.caption_lengths: caption_lengths,
-        # }
-        # loss, generated_questions, generated_answers, generated_images, batch_rewards = self.run_dialog(0)
-        # preds, gen_answers, gen_questions = sess.run([generated_images, generated_answers, generated_questions], feed_dict=feed)
-        # return preds, gen_answers, gen_questions
+        feed = {
+            self.images:images,
+            self.captions:captions,
+            self.caption_lengths: caption_lengths,
+            self.supervised_learning_rounds:0
+        }
+
+        questions, answers, images, rewards = sess.run([self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards], feed_dict = feed)
+        ind2word = self.dataloader.ind2word
+        questions = np.vectorize(ind2word.__getitem__)(questions)
+        answers = np.vectorize(ind2word.__getitem__)(answers)
+        captions = np.vectorize(ind2word.__getitem__)(captions)
+        for image, caption, questions_batch, answers_batch in zip(images, captions, questions, answers):
+            print " ".join(caption)
+            for round_idx, question, answer in enumerate(zip(questions_batch,answers_batch)):
+                print "Round Number: %d" %round_idx
+                print "Question:" + " ".join(question)
+                print "Answer:" + " ".join(answer)
 
     def concatenate_q_a(self, questions, question_lengths, answers, answer_lengths):
         """
