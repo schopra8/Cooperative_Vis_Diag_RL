@@ -4,9 +4,10 @@ from model import Dialog_Bots
 from config import config
 
 def main():
-	model=Dialog_Bots(config)
+	model = Dialog_Bots(config)
 	model.train(batch_size=model.config.batch_size,
-              num_iterations=model.config.num_iterations)
+              num_iterations=model.config.num_iterations,
+              max_dialog_rounds=model.config.max_dialog_rounds)
 	# model.generate_graphs()
 	# batch_generator = model.get_minibatches(5)
 	# image,caption,label = batch_generator.next()

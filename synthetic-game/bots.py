@@ -6,14 +6,15 @@ class SyntheticQBot(object):
     def __init__(self, config):
         self.config = config
         self.Q = defaultdict(lambda: np.zeros(self.config.num_actions))
-        self.Q_regression = defaultdict(lambda: np.zeros(self.config.num_classes))
+        # self.Q_regression = defaultdict(lambda: np.zeros(self.config.num_classes))
+        self.Q_regression = defaultdict(lambda: np.random.uniform(low=0.0, high=0.01, size=self.config.num_classes))
         self.states = None
 
     def set_initial_states(self, game_types):
         """
             Reset bot states and initialize to the game types.
         """
-        self.states = [((game_type,),) for game_type in game_types] 
+        self.states = [((game_type,),) for game_type in game_types]
 
     def decode_questions(self, epsilon):
         """
@@ -25,7 +26,6 @@ class SyntheticQBot(object):
             if np.random.rand() <= epsilon:
                 return optimal_question
             else:
-                print 'wtf bro'
                 suboptimal_question = np.random.choice(self.config.num_actions)
                 while suboptimal_question == optimal_question:
                     suboptimal_question = np.random.choice(self.config.num_actions)
@@ -51,7 +51,6 @@ class SyntheticQBot(object):
             if np.random.rand() <= epsilon:
                 return optimal_prediction
             else:
-                print 'wtf bro'
                 suboptimal_prediction = np.random.choice(self.config.num_classes)
                 while suboptimal_prediction == optimal_prediction:
                     suboptimal_prediction = np.random.choice(self.config.num_classes)
@@ -82,14 +81,9 @@ class SyntheticABot(object):
         def gen_answer(state, epsilon):
             optimal_answer = np.argmax(self.Q[state])
 
-            # Don't just default to first indexed element, if all value are 0
-            if self.Q[state][optimal_answer] == 0:
-                optimal_answer = np.random.choice(self.config.num_actions)
-
             if np.random.rand() <= epsilon:
                 return optimal_answer
             else:
-                print 'wtf bro'
                 suboptimal_answer = np.random.choice(self.config.num_actions)
                 while suboptimal_answer == optimal_answer:
                     suboptimal_answer = np.random.choice(self.config.num_actions)

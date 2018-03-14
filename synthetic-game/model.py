@@ -3,10 +3,10 @@ from collections import defaultdict
 from bots import SyntheticQBot
 from bots import SyntheticABot
 import math, os
-import matplotlib.pyplot as plt
-import scipy.signal as sig
+# import matplotlib.pyplot as plt
+# import scipy.signal as sig
 
-import pdb
+# import pdb
 
 class Dialog_Bots(object):
 	def __init__(self, config):
@@ -17,7 +17,7 @@ class Dialog_Bots(object):
 		self.Abot = SyntheticABot(self.config.A)
 		self.eval_rewards = []
 
-	def run_dialog(self, images, game_types, num_dialog_rounds=2, test=False):
+	def run_dialog(self, images, game_types, num_dialog_rounds, test=False):
 		""" Runs dialog for specified number of rounds:
 				1) Q Bot asks question
 				2) A Bot answers question based on history
@@ -78,9 +78,9 @@ class Dialog_Bots(object):
 
 		return predictions, q_bot_trajectories, a_bot_trajectories
 
-	def get_minibatches(self, batch_size=10000):
+	def get_minibatches(self, batch_size):
 		data = np.loadtxt(os.path.join(self.config.DATA_DIR, self.config.DATA_FILE), skiprows=1, delimiter=',')
-		# np.random.shuffle(data)
+		np.random.shuffle(data)
 		i = 0
 
 		# data = np.expand_dims(data, axis=0)
@@ -166,7 +166,7 @@ class Dialog_Bots(object):
 		plt.savefig(os.path.join(self.config.output_dir,'evaluation_rewards.png'), bbox_inches = 'tight')
 
 
-	def train(self, batch_size=10000, num_iterations=500, max_dialog_rounds=2):
+	def train(self, batch_size, num_iterations, max_dialog_rounds):
 		def calculate_running_average(updated_count, prev_q_value, new_return):
 			prev_q_val_contrib = (float(prev_q_value) / updated_count) * (updated_count - 1.0)
 			cur_update_contrib = float(new_return)/updated_count
@@ -204,6 +204,7 @@ class Dialog_Bots(object):
 				new_q_val = calculate_running_average(state_action_count, bot.Q_regression[final_state][final_action], final_return)
 				bot.Q_regression[final_state][final_action] = new_q_val
 
+				# print final_state
 				# print bot.Q_regression[final_state]
 
 		self.average_rewards_across_training = []
