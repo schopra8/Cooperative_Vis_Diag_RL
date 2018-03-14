@@ -14,8 +14,8 @@ def main():
             visdial_bots.saver.restore(sess, ckpt.model_checkpoint_path)
         else:
             sess.run(tf.global_variables_initializer())
-
         visdial_bots.train(sess, num_epochs = config.NUM_EPOCHS, batch_size = config.batch_size)
+
         # eval_dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
         #                     'data_img.h5', ['val'])
         # dev_batch_generator = eval_dataloader.getEvalBatch(5)
