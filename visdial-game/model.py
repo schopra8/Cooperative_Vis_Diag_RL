@@ -97,14 +97,16 @@ class model():
             question_logits, question_lengths = self.Qbot.get_questions(Q_state, supervised_training = False)
             #Find embeddings of questions
             generated_questions = tf.argmax(question_logits, axis=2, output_type=tf.int32)
+            question_masks = -tf.cast(tf.equal(generated_questions, tf.zeros(tf.shape(generated_questions), dtype=tf.int32)), tf.float32)*1e30
             #A-bot encodes questions
-            encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, generated_questions))
+            encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, generated_questions), question_lengths)
             #A-bot updates state
             A_state = self.Abot.encode_state_histories(A_fact, embedded_images, encoded_questions, A_state)
             #Abot generates answer logits
             answer_logits, answer_lengths = self.Abot.get_answers(A_state, supervised_training=False)
             #Generate facts for that round of dialog
             generated_answers = tf.argmax(answer_logits, axis=2, output_type=tf.int32)
+            answer_masks = -tf.cast(tf.equal(generated_answers, tf.zeros(tf.shape(generated_answers), dtype=tf.int32)), tf.float32)*1e30
             facts, fact_lengths = self.concatenate_q_a(generated_questions, question_lengths, generated_answers, answer_lengths)
             #Embed the facts into word vector space
             facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
@@ -119,8 +121,8 @@ class model():
             batch_rewards = tf.reduce_mean(rewards)
 
             #### CHANGE HERE FOR UPDATING ONLY SINGLE BOT
-            prob_questions = tf.reduce_max(tf.nn.softmax(question_logits), axis = 2)
-            prob_answers = tf.reduce_max(tf.nn.softmax(answer_logits), axis = 2)
+            prob_questions = tf.reduce_max(tf.nn.softmax(question_logits+question_masks), axis = 2)
+            prob_answers = tf.reduce_max(tf.nn.softmax(answer_logits+answer_masks), axis = 2)
             negative_log_prob_exchange = -tf.reduce_sum(tf.log(prob_questions), axis=1) - tf.reduce_sum(tf.log(prob_answers), axis=1)
             loss = tf.reduce_sum(negative_log_prob_exchange*rewards)
 
@@ -133,6 +135,8 @@ class model():
             true_question_lengths_round = self.true_question_lengths[:,i]
             true_answer_lengths_round = self.true_answer_lengths[:,i]
             #Generate questions based on current state
+            question_masks = 1-tf.cast(tf.equal(questions, tf.zeros(tf.shape(questions), dtype=tf.int32)), tf.float32)
+            answer_masks = 1-tf.cast(tf.equal(answers, tf.zeros(tf.shape(answers), dtype=tf.int32)), tf.float32)
             question_outputs, question_lengths = self.Qbot.get_questions(
                 Q_state,
                 true_questions=questions,
@@ -140,7 +144,7 @@ class model():
                 supervised_training=True
             )
             #Encode the true questions
-            encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, questions))
+            encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, questions), true_question_lengths_round)
             #Update A state based on true question
             A_state = self.Abot.encode_state_histories(A_fact, embedded_images, encoded_questions, A_state)
             # ABot Generates answers based on current state
@@ -153,7 +157,10 @@ class model():
             #Generate facts from true questions and answers
             # question_outputs = tf.Print(question_outputs, [tf.shape(questions), tf.shape(question_outputs), tf.shape(answers), answer_outputs], "SHAPES++++++++++=====")
             questions = questions[:,:tf.shape(question_outputs)[1]]
+            question_masks = question_masks[:,:tf.shape(question_outputs)[1]]
             answers = answers[:,:tf.shape(answer_outputs)[1]]
+            answer_masks = answer_masks[:,:tf.shape(answer_outputs)[1]]
+            
             facts, fact_lengths = self.concatenate_q_a(questions, true_question_lengths_round, answers, true_answer_lengths_round)
             embedded_facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
             A_fact = self.Abot.encode_facts(embedded_facts, fact_lengths)
@@ -165,8 +172,8 @@ class model():
             #### Loss for supervised training
             # question_logits, question_order = tf.transpose(question_outputs), tf.transpose(question_outputs[1], perm=[1, 0])
             # answer_logits, answer_order = tf.transpose(answer_outputs[0], perm=[1, 0, 2]), tf.transpose(answer_outputs[1], perm=[1, 0])
-            dialog_loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits = question_outputs, labels = questions))
-            dialog_loss += tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits = answer_outputs, labels = answers))
+            dialog_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits = question_outputs, labels = questions)*question_masks)
+            dialog_loss += tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits = answer_outputs, labels = answers)*answer_masks)
             image_loss = tf.reduce_sum(tf.nn.l2_loss(image_guess - embedded_images))
             loss = dialog_loss + image_loss
 

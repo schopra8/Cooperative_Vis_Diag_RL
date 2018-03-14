@@ -50,7 +50,7 @@ class DeepABot():
         initial_states, embedded_images = self.history_encoder.generate_next_state(encoded_captions, empty_questions, images, prev_states=None, reduce_image_dims=True)
         return initial_states, embedded_images
 
-    def encode_questions(self, questions):
+    def encode_questions(self, questions, question_lengths):
         """Encodes questions (Question Encoder)
 
         Args:
@@ -58,7 +58,7 @@ class DeepABot():
         Returns:
             question_encodings: encoding of the questions [Batch Size, hidden_size]
         """
-        return self.question_encoder.encode_questions(questions)
+        return self.question_encoder.encode_questions(questions, question_lengths)
 
     def encode_facts(self, inputs, input_lengths):
         """Encodes questions and answers into a fact (Fact Encoder)

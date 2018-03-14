@@ -30,7 +30,7 @@ class QuestionEncoder(object):
             # self.cell = tf.contrib.rnn.MultiRNNCell(cells)
             self.cell = tf.contrib.rnn.GRUCell(self.hidden_dimension)
 
-    def encode_questions(self, questions):
+    def encode_questions(self, questions, question_lengths):
         """
         Given a question, output an embedding for the question.
         ===================================
@@ -42,6 +42,6 @@ class QuestionEncoder(object):
             _, encoded_questions = tf.nn.dynamic_rnn(
                 self.cell,
                 questions,
-                dtype=tf.float32
+                dtype=tf.float32, sequence_length = question_lengths
             )
             return encoded_questions
