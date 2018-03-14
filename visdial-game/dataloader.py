@@ -15,13 +15,13 @@ class DataLoader(object):
         self.vocabSize = len(self.word2ind)
 
         # add <START> and <END> to vocabulary
-        self.word2ind['<START>'] = self.vocabSize 
-        self.word2ind['<END>'] = self.vocabSize + 1
+        self.word2ind['<START>'] = self.vocabSize + 1
+        self.word2ind['<END>'] = self.vocabSize + 2
         self.vocabSize += 2
         if self.verbose:
             print 'Vocabulary size (with <START>,<END>):{}'.format(self.vocabSize)
 
-        self.ind2word = visdial_params['word2ind']
+        self.ind2word = visdial_params['ind2word']
         self.ind2word[str(self.word2ind['<START>'])] = '<START>'
         self.ind2word[str(self.word2ind['<END>'])] = '<END>'
 
