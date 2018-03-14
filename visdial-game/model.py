@@ -5,6 +5,7 @@ from bots import DeepQBot
 from bots import DeepABot
 import math
 import string
+import pdb
 
 class model():
     def __init__(self, config):
@@ -349,6 +350,7 @@ class model():
         questions, answers, images, rewards = sess.run([self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards], feed_dict = feed)
         ind2word = self.dataloader.ind2word
         ind2word[0] = '<NONE>'
+        pdb.set_trace()
         questions = np.vectorize(ind2word.__getitem__)(questions)
         answers = np.vectorize(ind2word.__getitem__)(answers)
         captions = np.vectorize(ind2word.__getitem__)(captions)
