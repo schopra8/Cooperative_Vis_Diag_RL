@@ -24,6 +24,10 @@ class DataLoader(object):
         self.ind2word = visdial_params['ind2word']
         self.ind2word[str(self.word2ind['<START>'])] = '<START>'
         self.ind2word[str(self.word2ind['<END>'])] = '<END>'
+        self.ind2word_int = {}
+        for key, value in self.ind2word.iteritems():
+            self.ind2word_int[int(key)] = value
+        self.ind2word = self.ind2word_int
 
         if self.verbose:
             print 'DataLoader loading h5 file:', visdial_data_h5

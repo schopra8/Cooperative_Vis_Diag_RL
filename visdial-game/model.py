@@ -349,10 +349,6 @@ class model():
         questions, answers, images, rewards = sess.run([self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards], feed_dict = feed)
         ind2word = self.dataloader.ind2word
         ind2word[0] = '<NONE>'
-
-        questions = np.array2string(questions, formatter={'int':lambda x: int(x)})
-        answers = np.array2string(answers, formatter={'int':lambda x: int(x)})
-        captions = np.array2string(captions, formatter={'int':lambda x: int(x)})
         questions = np.vectorize(ind2word.__getitem__)(questions)
         answers = np.vectorize(ind2word.__getitem__)(answers)
         captions = np.vectorize(ind2word.__getitem__)(captions)
