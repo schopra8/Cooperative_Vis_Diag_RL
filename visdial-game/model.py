@@ -333,7 +333,7 @@ class model():
         percentage_rank_gt = (np.array(pos_gt) + 1) / validation_data_sz  # + 1 to account for 0 indexing
         return percentage_rank_gt
 
-    def show_dialog(self, sess, images, captions, caption_lengths, answers):
+    def show_dialog(self, sess, images, captions, caption_lengths, gt_indices):
         feed = {
             self.images:images,
             self.captions:captions,
@@ -343,11 +343,15 @@ class model():
 
         questions, answers, images, rewards = sess.run([self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards], feed_dict = feed)
         ind2word = self.dataloader.ind2word
+        ind2word[0] = '<NONE>'
         questions = np.vectorize(ind2word.__getitem__)(questions)
         answers = np.vectorize(ind2word.__getitem__)(answers)
         captions = np.vectorize(ind2word.__getitem__)(captions)
+        i = 0
         for image, caption, questions_batch, answers_batch in zip(images, captions, questions, answers):
+            print "Image Index: {}".format(gt_indices[i])
             print " ".join(caption)
+            i += 1
             for round_idx, question, answer in enumerate(zip(questions_batch,answers_batch)):
                 print "Round Number: %d" %round_idx
                 print "Question:" + " ".join(question)
