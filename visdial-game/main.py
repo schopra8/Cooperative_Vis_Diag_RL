@@ -1,6 +1,7 @@
 from config import Config
 from model import model
 import tensorflow as tf
+from dataloader import DataLoader
 
 def main():
     config = Config()

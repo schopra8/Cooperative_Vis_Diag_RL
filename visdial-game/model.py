@@ -337,8 +337,12 @@ class model():
         feed = {
             self.images:images,
             self.captions:captions,
-            self.caption_lengths: caption_lengths,
-            self.supervised_learning_rounds:0
+            self.caption_lengths:caption_lengths,
+            self.true_questions:np.zeros((1, self.config.num_dialog_rounds, self.config.MAX_QUESTION_LENGTH), dtype=np.int32),
+            self.true_question_lengths:np.zeros((1, self.config.num_dialog_rounds), dtype=np.int32),
+            self.true_answers:np.zeros((1, self.config.num_dialog_rounds, self.config.MAX_ANSWER_LENGTH), dtype=np.int32),
+            self.true_answer_lengths:np.zeros((1, self.config.num_dialog_rounds), dtype=np.int32),
+            self.supervised_learning_rounds:0,
         }
 
         questions, answers, images, rewards = sess.run([self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards], feed_dict = feed)
