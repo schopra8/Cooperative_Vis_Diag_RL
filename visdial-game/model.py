@@ -3,7 +3,7 @@ import numpy as np
 from dataloader import DataLoader
 from bots import DeepQBot
 from bots import DeepABot
-
+import math
 
 class model():
     def __init__(self, config):
@@ -205,6 +205,7 @@ class model():
                 prog_values=[("Loss", loss)]
                 if global_step % self.config.eval_every == 0:
                     dev_loss, dev_MRR = self.evaluate(sess, i)
+                    print "DEV MRR: {}".format(dev_MRR)
                     self.write_summary(dev_loss, "dev/loss_total", summary_writer, global_step)
                     self.write_summary(tf.reduce_mean(dev_MRR), "dev/MRR_average", summary_writer, global_step)
                     if dev_loss < best_dev_loss:
@@ -251,7 +252,7 @@ class model():
                             'data_img.h5', ['val'])
         dev_loss = 0
         dev_batch_generator = eval_dataloader.getEvalBatch(self.config.batch_size)
-        num_batches = self.config.NUM_VALIDATION_SAMPLES / self.config.batch_size + 1
+        num_batches = math.ceil(self.config.NUM_VALIDATION_SAMPLES / self.config.batch_size)
         progbar = tf.keras.utils.Progbar(target=num_batches)
         for i, batch in enumerate(dev_batch_generator):
             true_images, _, _, _, _, _, _, gt_indices = batch
@@ -261,7 +262,7 @@ class model():
             if compute_MRR:
                 for round_number, p in enumerate(preds):
                     percentage_rank_gt = self.compute_mrr(p, gt_indices, true_images, round_number, epoch)
-                    MRR[round_number] += tf.reduce_mean(percentage_rank_gt)
+                    MRR[round_number] += tf.divide(tf.reduce_mean(percentage_rank_gt), tf.constant(num_batches))
             progbar.update(i+1)
         return dev_loss, MRR
 
