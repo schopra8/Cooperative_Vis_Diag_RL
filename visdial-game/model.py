@@ -172,7 +172,7 @@ class model():
             #### Loss for supervised training
             # question_logits, question_order = tf.transpose(question_outputs), tf.transpose(question_outputs[1], perm=[1, 0])
             # answer_logits, answer_order = tf.transpose(answer_outputs[0], perm=[1, 0, 2]), tf.transpose(answer_outputs[1], perm=[1, 0])
-            dialog_loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits = question_outputs, labels = questions)*question_masks)
+            dialog_loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits = question_outputs, labels = questions)*question_masks)
             dialog_loss += tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits = answer_outputs, labels = answers)*answer_masks)
             image_loss = tf.reduce_sum(tf.nn.l2_loss(image_guess - embedded_images))
             loss = dialog_loss + image_loss
