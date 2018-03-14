@@ -43,14 +43,14 @@ class config():
     # Number of rounds of dialog before cutoff
     max_dialog_rounds = 2
     # Batch Size
-    batch_size = 384
-    num_iterations = 500000
+    batch_size = 384*30
+    num_iterations = 20000
     verbose = True
 
 ## Evaluation parameters
     test_batch = 384
     # test_batch = 1
-    eval_every = 100
+    eval_every = 20
     show_dialog = False
     dialogs_to_show = 3
 ## Smoothing parameters for plot
