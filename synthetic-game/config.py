@@ -44,7 +44,7 @@ class config():
     max_dialog_rounds = 2
     # Batch Size
     batch_size = 384
-    num_iterations = 50000
+    num_iterations = 500000
     verbose = True
 
 ## Evaluation parameters
