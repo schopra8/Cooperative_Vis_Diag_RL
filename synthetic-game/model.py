@@ -39,9 +39,11 @@ class Dialog_Bots(object):
 		if test:
 			q_epsilon = 1.0
 			a_epsilon = 1.0
+			q_regression_epsilon = 1.0
 		else:
 			q_epsilon = self.config.q_epsilon
 			a_epsilon = self.config.a_epsilon
+			q_regression_epsilon = self.config.q_regression_epsilon
 
 		# Simulate Rounds of Dialog
 		self.Qbot.set_initial_states(game_types)
@@ -60,7 +62,8 @@ class Dialog_Bots(object):
 		self.Abot.update_states(prev_answers, null_questions) 
 		
 		# Generate Predictions
-		predictions = self.Qbot.generate_image_predictions(q_epsilon)
+		predictions = self.Qbot.generate_image_predictions(q_regression_epsilon)
+		# print predictions
 
 		# Generate Trajectories 
 		q_bot_trajectories = []
@@ -77,10 +80,14 @@ class Dialog_Bots(object):
 
 	def get_minibatches(self, batch_size=10000):
 		data = np.loadtxt(os.path.join(self.config.DATA_DIR, self.config.DATA_FILE), skiprows=1, delimiter=',')
-		np.random.shuffle(data)
+		# np.random.shuffle(data)
 		i = 0
+
+		# data = np.expand_dims(data, axis=0)
+		# print data
+
 		size = data.shape[0]
-		num_copies = int(batch_size / size) + 1
+		num_copies = int(np.ceil(batch_size / size))
 		while True:
 			if num_copies > 1:
 				images = np.repeat(data[:,:3], num_copies, axis=0)
@@ -99,6 +106,8 @@ class Dialog_Bots(object):
 			+1 Reward if guess == answer
 			-1 Otherwise
 		"""
+		# print predictions
+		# print labels
 		return [1 if predictions[i] == labels[i] else -1 for i in xrange(len(predictions))]
 
 	def get_returns(self, trajectories, predictions, labels):

@@ -25,6 +25,7 @@ class SyntheticQBot(object):
             if np.random.rand() <= epsilon:
                 return optimal_question
             else:
+                print 'wtf bro'
                 suboptimal_question = np.random.choice(self.config.num_actions)
                 while suboptimal_question == optimal_question:
                     suboptimal_question = np.random.choice(self.config.num_actions)
@@ -50,9 +51,10 @@ class SyntheticQBot(object):
             if np.random.rand() <= epsilon:
                 return optimal_prediction
             else:
-                suboptimal_prediction = np.random.choice(self.config.num_actions)
+                print 'wtf bro'
+                suboptimal_prediction = np.random.choice(self.config.num_classes)
                 while suboptimal_prediction == optimal_prediction:
-                    suboptimal_prediction = np.random.choice(self.config.num_actions)
+                    suboptimal_prediction = np.random.choice(self.config.num_classes)
                 return suboptimal_prediction
         return [gen_image_prediction(state, epsilon) for state in self.states]
 
@@ -87,6 +89,7 @@ class SyntheticABot(object):
             if np.random.rand() <= epsilon:
                 return optimal_answer
             else:
+                print 'wtf bro'
                 suboptimal_answer = np.random.choice(self.config.num_actions)
                 while suboptimal_answer == optimal_answer:
                     suboptimal_answer = np.random.choice(self.config.num_actions)

@@ -1,8 +1,10 @@
 import tensorflow as tf
 
 class config():
-    q_epsilon = 0.6
-    a_epsilon = 0.6
+    # Greediness
+    q_epsilon = 1.0
+    a_epsilon = 1.0
+    q_regression_epsilon = 1.0
 
     class Q():
     #Vocabulary size for Q bot
@@ -41,14 +43,14 @@ class config():
     # Number of rounds of dialog before cutoff
     max_dialog_rounds = 2
     # Batch Size
-    batch_size = 10000
-    num_iterations = 2000
+    batch_size = 2
+    num_iterations = 500
     verbose = True
 
 ## Evaluation parameters
-    test_batch = 384
+    test_batch = 2
     # test_batch = 1
-    eval_every = 100
+    eval_every = 5
     show_dialog = False
     dialogs_to_show = 3
 ## Smoothing parameters for plot
@@ -57,4 +59,4 @@ class config():
 ##Output files
     output_dir = "./results"
     DATA_DIR = "../synthetic_data/"
-    DATA_FILE = "synthetic_data.csv"
+    DATA_FILE = "mini_synthetic_data.csv"
