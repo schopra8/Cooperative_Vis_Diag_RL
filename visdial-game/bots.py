@@ -47,7 +47,7 @@ class DeepABot():
         batch_size = tf.shape(captions)[0]
         empty_questions = tf.zeros([batch_size, self.config.A.hidden_dims])
         encoded_captions = self.fact_encoder.generate_fact(captions, caption_lengths)
-        initial_states, embedded_images = self.history_encoder.generate_next_state(encoded_captions, empty_questions, images, prev_states=None, reduce_image_dims=True)
+        initial_states, embedded_images = self.history_encoder.generate_next_state(encoded_captions, empty_questions, images, prev_states=None)
         return initial_states, embedded_images
 
     def encode_questions(self, questions, question_lengths):
@@ -82,8 +82,8 @@ class DeepABot():
         Returns:
             states: encoded states that combine images, captions, question_encodings, recent_facts
         """
-        states, _ = self.history_encoder.generate_next_state(recent_facts, question_encodings, images, prev_states)
-        return states
+        states, embedded_images = self.history_encoder.generate_next_state(recent_facts, question_encodings, images, prev_states)
+        return states, embedded_images
 
     def get_answers(self, states, true_answers=None, true_answer_lengths=None, supervised_training=False):
         """Returns answers according to some exploration policy given encoded states
@@ -96,13 +96,13 @@ class DeepABot():
         """
         if supervised_training:
             assert (true_answers != None and true_answer_lengths != None)
-        answer_logits, answer_lengths = self.answer_decoder.generate_answer(
+        answer_logits, answer_lengths, answer_ids = self.answer_decoder.generate_answer(
             states,
             true_answers,
             true_answer_lengths,
             supervised_training
         )
-        return answer_logits, answer_lengths
+        return answer_logits, answer_lengths, answer_ids
 
 class DeepQBot():
     """Abstracts a Q-Bot for asking questions about a photo
@@ -181,10 +181,10 @@ class DeepQBot():
         """
         if supervised_training:
             assert (true_questions != None and true_question_lengths != None)
-        question_logits, question_lengths = self.question_decoder.generate_question(
+        question_logits, question_lengths, question_ids = self.question_decoder.generate_question(
             states,
             true_questions=true_questions,
             true_question_lengths=true_question_lengths,
             supervised_training=supervised_training
         )
-        return question_logits, question_lengths
+        return question_logits, question_lengths, question_ids
