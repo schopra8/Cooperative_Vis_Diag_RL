@@ -35,7 +35,7 @@ class QuestionEncoder(object):
         Given a question, output an embedding for the question.
         ===================================
         INPUTS:
-        questions: float - (batch_size, max_sequence_length, vocabulary_size)
+        questions: float - (batch_size, max_sequence_length)
         """
         with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             batch_size = tf.shape(questions)[0]
