@@ -15,7 +15,7 @@ from models.abot import ABot
 class DeepABot():
     """Abstracts an A-Bot for answering questions about a photo
     """
-    def __init__(self, config, start_token_embedding, embedding_matrix):
+    def __init__(self, config, embedding_matrix):
         with tf.variable_scope("a_bot") as scope:
             self.config = config
             self.fact_encoder = FactEncoder(self.config.A.hidden_dims, scope)
@@ -107,7 +107,7 @@ class DeepABot():
 class DeepQBot():
     """Abstracts a Q-Bot for asking questions about a photo
     """
-    def __init__(self, config, start_token_embedding, embedding_matrix):
+    def __init__(self, config, embedding_matrix):
         with tf.variable_scope("q_bot") as scope:
             self.config = config
             self.fact_encoder = FactEncoder(self.config.Q.hidden_dims, scope)
