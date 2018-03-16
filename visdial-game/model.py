@@ -87,7 +87,6 @@ class model():
             #Q-Bot generates question logits
             question_logits, question_lengths, generated_questions = self.Qbot.get_questions(Q_state, supervised_training=False)
             #Find embeddings of questions
-
             question_masks = tf.cast(tf.equal(generated_questions, tf.zeros(tf.shape(generated_questions), dtype=tf.int32)), tf.float32)
             #A-bot encodes questions
             encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, generated_questions), question_lengths)
@@ -134,11 +133,24 @@ class model():
                 true_question_lengths=true_question_lengths_round,
                 supervised_training=True
             )
+
+            # tf.Print(true_question_lengths_round, [true_question_lengths_round], "True Question Lengths")
+            # tf.Print(question_masks, [tf.shape(question_masks), question_masks], "Question Masks Shape & Tensor")
+            # tf.Print(generated_questions, [tf.shape(generated_questions), generated_questions], "Generated Questions Shape & Tensor")
+            # tf.Print(question_lengths, [question_lengths], "Generated Question Lengths")
+
+
             #Encode the true questions
             # question_lengths = tf.Print(question_lengths,[question_lengths, true_question_lengths_round], "Length of Questions:")
             encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, true_questions), true_question_lengths_round)
+            # tf.Print(encoded_questions, [encoded_questions], "Encoded Questions")
             #Update A state based on true question
             A_state, embedded_images = self.Abot.encode_state_histories(A_fact, self.images, encoded_questions, A_state)
+
+            # tf.Print(A_state, ["A State", A_state])
+            # tf.Print(embedded_images, [embedded_images], "Embedded Images")
+
+
             # ABot Generates answers based on current state
             answer_outputs, answer_lengths, generated_answers = self.Abot.get_answers(
                 A_state,
@@ -146,6 +158,10 @@ class model():
                 true_answer_lengths=true_answer_lengths_round,
                 supervised_training=True
             )
+
+            # tf.Print(generated_answers, [tf.shape(generated_answers), generated_answers], "Generated Answer Shape & Tensor")
+            # tf.Print(question_lengths, [question_lengths], "Generated Question Lengths")
+
             #Generate facts from true questions and answers
             # question_outputs = tf.Print(question_outputs, [tf.shape(questions), tf.shape(question_outputs), tf.shape(answers), answer_outputs], "SHAPES++++++++++=====")
             questions = true_questions[:,:tf.shape(question_outputs)[1]]
@@ -154,11 +170,26 @@ class model():
             answer_masks = answer_masks[:,:tf.shape(answer_outputs)[1]]
 
             facts, fact_lengths = self.concatenate_q_a(questions, true_question_lengths_round, answers, true_answer_lengths_round)
+
+            # tf.Print(facts, [tf.shape(facts), facts], "facts")
+
             embedded_facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
+
+            # tf.Print(embedded_facts, [embedded_facts], "Embedded Facts")
+
             A_fact = self.Abot.encode_facts(embedded_facts, fact_lengths)
+
+            # tf.Print(A_fact, [A_fact], "A Fact")
+
             Q_fact = self.Qbot.encode_facts(embedded_facts, fact_lengths)
+
+            # tf.Print(Q_fact, [Q_fact], "Q Fact")
+
             #Update state histories using current facts
             Q_state = self.Qbot.encode_state_histories(Q_fact, Q_state)
+
+            # tf.Print(Q_state, [Q_state], "Q State")
+
             #Guess image
             image_guess = self.Qbot.generate_image_representations(Q_state)
             #### Loss for supervised training
