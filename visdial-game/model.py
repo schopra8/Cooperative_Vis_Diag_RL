@@ -237,6 +237,9 @@ class model():
                     print "Saving Model Weights!"
                     self.saver.save(sess, self.config.model_save_directory, global_step=global_step)
                     print "Done Saving Model Weights!"
+                if global_step% self.config.show_every == 0:
+                    images, captions, caption_lengths, _, _, _, _, gt_indices = batch
+                    self.show_dialog(sess, images, captions, caption_lengths, gt_indices)
 
   
     def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds = 10):
