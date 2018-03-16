@@ -366,19 +366,18 @@ class model():
         questions, answers, images, rewards = sess.run([self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards], feed_dict = feed)
         ind2word = self.dataloader.ind2word
         ind2word[0] = '<NONE>'
-        # pdb.set_trace()
-        questions = np.vectorize(ind2word.__getitem__)(questions)
-        answers = np.vectorize(ind2word.__getitem__)(answers)
-        captions = np.vectorize(ind2word.__getitem__)(captions)
+        questions = [np.vectorize(ind2word.__getitem__)(np.asarray(question)) for question in questions]
+        answers = [np.vectorize(ind2word.__getitem__)(np.asarray(answer)) for answer in answers]
+        captions = [np.vectorize(ind2word.__getitem__)(np.asarray(caption)) for caption in captions]
         i = 0
-        for image, caption, questions_batch, answers_batch in zip(images, captions, questions, answers):
+        for batch_idx, (image, caption) in enumerate(zip(images, captions)):
             print "Image Index: {}".format(gt_indices[i])
             print " ".join(caption)
             i += 1
-            for round_idx, question, answer in enumerate(zip(questions_batch,answers_batch)):
+            for round_idx, (question, answer) in enumerate(zip(questions,answers)):
                 print "Round Number: %d" %round_idx
-                print "Question:" + " ".join(question)
-                print "Answer:" + " ".join(answer)
+                print "Question:" + " ".join(question[batch_idx,:])
+                print "Answer:" + " ".join(answer[batch_idx, :])
 
     def concatenate_q_a(self, questions, question_lengths, answers, answer_lengths):
         """
