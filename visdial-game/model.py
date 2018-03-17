@@ -59,7 +59,7 @@ class model():
         #Q-Bot generates question logits
         question_logits, question_lengths, generated_questions = self.Qbot.get_questions(Q_state, supervised_training=False)
 
-        question_logits = tf.Print(question_logits, [tf.argmax(question_logits, axis=2), self.true_questions] , summarize=15)
+        question_logits = tf.Print(generated_questions, [tf.argmax(question_logits, axis=2), self.true_questions] , summarize=15)
 
         # generated_questions = tf.Print(generated_questions, [tf.shape(generated_questions), generated_questions], "Generated Questions Shape & Tensor")
         #Find embeddings of questions
