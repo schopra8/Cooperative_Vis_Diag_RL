@@ -48,7 +48,7 @@ class model():
         tf.summary.scalar('avg_batch_rewards', avg_batch_rewards)
 
     def add_update_op(self):
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.config.learning_rate)
+        optimizer = tf.train.AdamOptimizer(learning_rate=tf.train.exponential_decay(self.config.learning_rate, self.global_step, 1000, 0.997592083))
         grads, variables = map(list, zip(*optimizer.compute_gradients(self.loss)))
         # clip global_norm or norm??
         clipped_grads, _ = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
