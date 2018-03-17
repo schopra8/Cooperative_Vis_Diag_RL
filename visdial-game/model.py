@@ -41,7 +41,8 @@ class model():
         self.num_supervised_learning_rounds = tf.placeholder(tf.int32, shape=[])
 
     def add_loss_op(self):
-        self.loss, self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards = self.run_dialog()
+        self.loss, self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards = self.run_dialog_sl()
+        self.loss_rl, self.generated_questions_rl, self.generated_answers_rl, self.generated_images_rl, self.batch_rewards_rl = self.run_dialog_rl()
         avg_batch_rewards = tf.add_n(self.batch_rewards) / len(self.batch_rewards)
         tf.summary.scalar('loss', self.loss)
         tf.summary.scalar('avg_batch_rewards', avg_batch_rewards)
@@ -105,27 +106,10 @@ class model():
             true_question_lengths=true_question_lengths,
             supervised_training=True
         )
-
-        # true_questions = tf.Print(true_questions, [tf.shape(true_questions), true_questions], "True Questions Shape & Tensor")
-        # true_question_lengths = tf.Print(true_question_lengths, [true_question_lengths], "True Question Lengths")
-        # question_masks = tf.Print(question_masks, [tf.shape(question_masks), question_masks], "Question Masks Shape & Tensor")
-
-        # questions = tf.Print(questions, [tf.shape(questions), questions], "Generated Questions Shape & Tensor")
-        # question_lengths = tf.Print(question_lengths, [question_lengths], "Generated Question Lengths")
-        # question_logits = tf.Print(question_logits, [tf.shape(question_logits), question_logits], "Question Logits Shape & Tensor", summarize=15)
-
-
         #Encode the true questions
-        # question_lengths = tf.Print(question_lengths,[question_lengths, true_question_lengths], "Length of Questions:")
         encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, true_questions), true_question_lengths)
-        # encoded_questions = tf.Print(encoded_questions, [encoded_questions], "Encoded Questions")
         #Update A state based on true question
         A_state, embedded_images = self.Abot.encode_state_histories(A_fact, self.vgg_images, encoded_questions, A_state)
-
-        # A_state = tf.Print(A_state, ["A State", A_state])
-        # embedded_images = tf.Print(embedded_images, [embedded_images], "Embedded Images")
-
-
         # ABot Generates answers based on current state
         answer_logits, answer_lengths, answers = self.Abot.get_answers(
             A_state,
@@ -134,11 +118,8 @@ class model():
             supervised_training=True
         )
 
-        # answers = tf.Print(answers, [tf.shape(answers), answers], "Generated Answer Shape & Tensor")
-        # answer_lengths = tf.Print(answer_lengths, [answer_lengths], "Generated Answer Lengths")
 
         #Generate facts from true questions and answers
-        # question_logits = question_logits = tf.Print(question_logits, [tf.shape(questions), tf.shape(question_logits), tf.shape(answers), answer_logits], "SHAPES++++++++++=====")
         questions = true_questions[:,:tf.shape(question_logits)[1]]
         question_masks = question_masks[:,:tf.shape(question_logits)[1]]
         answers = true_answers[:,:tf.shape(answer_logits)[1]]
@@ -146,30 +127,16 @@ class model():
 
         facts, fact_lengths = self.concatenate_q_a(questions, true_question_lengths, answers, true_answer_lengths)
 
-        # facts = tf.Print(facts, [tf.shape(facts), facts], "facts")
-
         embedded_facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
-
-        # embedded_facts = tf.Print(embedded_facts, [embedded_facts], "Embedded Facts")
 
         A_fact = self.Abot.encode_facts(embedded_facts, fact_lengths)
 
-        # A_fact = tf.Print(A_fact, [A_fact], "A Fact")
-
         Q_fact = self.Qbot.encode_facts(embedded_facts, fact_lengths)
-
-        # Q_fact = tf.Print(Q_fact, [Q_fact], "Q Fact")
-
         #Update state histories using current facts
         Q_state = self.Qbot.encode_state_histories(Q_fact, Q_state)
-
-        # Q_state = tf.Print(Q_state, [Q_state], "Q State")
-
         #Guess image
         image_guess = self.Qbot.generate_image_representations(Q_state)
         #### Loss for supervised training
-        # question_logits, question_order = tf.transpose(question_logits), tf.transpose(question_logits[1], perm=[1, 0])
-        # answer_logits, answer_order = tf.transpose(answer_logits[0], perm=[1, 0, 2]), tf.transpose(answer_logits[1], perm=[1, 0])
         question_loss = tf.reduce_mean(
             tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
                             logits=question_logits, labels=questions)*question_masks, axis=1))
@@ -181,7 +148,7 @@ class model():
         loss = question_loss + answer_loss + image_loss
         return [loss, Q_state, A_state, A_fact, questions, answers, image_guess, tf.constant(0.0)]
 
-    def run_dialog(self):
+    def run_dialog_sl(self):
         """
         Function that runs dialog between two bots for a variable number of rounds, with a subset of rounds with supervised training
         ================================
@@ -206,14 +173,44 @@ class model():
         cumulative_rewards = []
 
         for i in xrange(self.config.num_dialog_rounds):
-            # x = tf.constant(i)
-            # loss = tf.Print(loss, [x], "dialog_number: ")
             outputs = self.sl_run_dialog_round(i, Q_state, A_state, A_fact)
-            # outputs = tf.cond(
-            #     tf.greater_equal(x, self.num_supervised_learning_rounds),
-            #     lambda: self.rl_run_dialog_round(i, Q_state, A_state, A_fact, prev_image_predictions),
-            #     lambda: self.sl_run_dialog_round(i, Q_state, A_state, A_fact)
-            # )
+            round_loss, Q_state, A_state, A_fact, questions, answers, image_predictions, rewards = outputs
+            loss += round_loss
+
+            generated_questions.append(questions)
+            generated_answers.append(answers)
+            cumulative_rewards.append(rewards)
+            generated_images.append(image_predictions)
+            prev_image_predictions = image_predictions
+
+        return loss, generated_questions, generated_answers, generated_images, cumulative_rewards
+
+    def run_dialog_rl(self):
+        """
+        Function that runs dialog between two bots for a variable number of rounds, with a subset of rounds with supervised training
+        ================================
+        INPUTS:
+        ================================
+        OUTPUTS:
+        """
+        caption_embeddings = tf.nn.embedding_lookup(self.embedding_matrix, self.captions)
+        Q_state = self.Qbot.encode_captions(caption_embeddings, self.caption_lengths)
+        A_state, reduced_dim_image_embeddings = self.Abot.encode_images_captions(
+            caption_embeddings,
+            self.vgg_images,
+            self.caption_lengths
+        )
+        A_fact = self.Abot.encode_facts(caption_embeddings, self.caption_lengths)
+        prev_image_predictions = self.Qbot.generate_image_representations(Q_state)
+        image_loss = 0.0
+        loss = 0.0
+        generated_questions = []
+        generated_answers = []
+        generated_images = []
+        cumulative_rewards = []
+
+        for i in xrange(self.config.num_dialog_rounds):
+            outputs = self.rl_run_dialog_round(i, Q_state, A_state, A_fact, prev_image_predictions)
             round_loss, Q_state, A_state, A_fact, questions, answers, image_predictions, rewards = outputs
             loss += round_loss
 
@@ -385,8 +382,7 @@ class model():
             self.true_answer_lengths: np.zeros((1, self.config.num_dialog_rounds), dtype=np.int32),
             self.num_supervised_learning_rounds: 0
         }
-
-        questions, answers, images, rewards = sess.run([self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards], feed_dict = feed)
+        questions, answers, images, rewards = sess.run([self.generated_questions_rl, self.generated_answers_rl, self.generated_images_rl, self.batch_rewards_rl], feed_dict = feed)
         ind2word = self.dataloader.ind2word
         ind2word[0] = '<NONE>'
         questions = [np.vectorize(ind2word.__getitem__)(np.asarray(question)) for question in questions]
