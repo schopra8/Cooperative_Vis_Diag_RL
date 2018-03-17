@@ -106,6 +106,9 @@ class model():
             true_question_lengths=true_question_lengths,
             supervised_training=True
         )
+
+        question_logits = tf.Print(question_logits, [tf.argmax(question_logits, axis=2), true_questions], summarize=15)
+        
         #Encode the true questions
         encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, true_questions), true_question_lengths)
         #Update A state based on true question
@@ -118,14 +121,13 @@ class model():
             supervised_training=True
         )
 
-
         #Generate facts from true questions and answers
-        questions = true_questions[:,:tf.shape(question_logits)[1]]
+        true_questions = true_questions[:,:tf.shape(question_logits)[1]]
         question_masks = question_masks[:,:tf.shape(question_logits)[1]]
-        answers = true_answers[:,:tf.shape(answer_logits)[1]]
+        true_answers = true_answers[:,:tf.shape(answer_logits)[1]]
         answer_masks = answer_masks[:,:tf.shape(answer_logits)[1]]
 
-        facts, fact_lengths = self.concatenate_q_a(questions, true_question_lengths, answers, true_answer_lengths)
+        facts, fact_lengths = self.concatenate_q_a(true_questions, true_question_lengths, true_answers, true_answer_lengths)
 
         embedded_facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
 
@@ -139,14 +141,14 @@ class model():
         #### Loss for supervised training
         question_loss = tf.reduce_mean(
             tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
-                            logits=question_logits, labels=questions)*question_masks, axis=1))
+                            logits=question_logits, labels=true_questions)*question_masks, axis=1))
         answer_loss = tf.reduce_mean(
                 tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
-                            logits=answer_logits, labels=answers)*answer_masks, axis=1))
+                            logits=answer_logits, labels=true_answers)*answer_masks, axis=1))
         image_loss = tf.reduce_mean(tf.nn.l2_loss(image_guess - embedded_images))
 
         loss = question_loss + answer_loss + image_loss
-        return [loss, Q_state, A_state, A_fact, questions, answers, image_guess, tf.constant(0.0)]
+        return [loss, Q_state, A_state, A_fact, true_questions, true_answers, image_guess, tf.constant(0.0)]
 
     def run_dialog_sl(self):
         """
