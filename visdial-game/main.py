@@ -24,7 +24,7 @@ def main(args):
             images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
             visdial_bots.show_dialog(sess, images, captions, caption_lengths, gt_indices)
             return
-        visdial_bots.train(sess, num_epochs = config.NUM_EPOCHS, batch_size = config.batch_size)
+        visdial_bots.train(sess, num_epochs=config.NUM_EPOCHS, batch_size=config.batch_size)
 
         
         # visdial_bots.evaluate(sess, epoch=10, compute_MRR = True)
