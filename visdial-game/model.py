@@ -57,7 +57,7 @@ class model():
     def rl_run_dialog_round(self, i, Q_state, A_state, A_fact, prev_image_predictions):
         #Q-Bot generates question logits
         question_logits, question_lengths, generated_questions = self.Qbot.get_questions(Q_state, supervised_training=False)
-        generated_questions = tf.Print(generated_questions, [tf.shape(generated_questions), generated_questions], "Generated Questions Shape & Tensor")
+        # generated_questions = tf.Print(generated_questions, [tf.shape(generated_questions), generated_questions], "Generated Questions Shape & Tensor")
         #Find embeddings of questions
         question_masks = tf.cast(tf.equal(generated_questions, tf.zeros(tf.shape(generated_questions), dtype=tf.int32)), tf.float32)
         #A-bot encodes questions
@@ -106,13 +106,13 @@ class model():
             supervised_training=True
         )
 
-        true_questions = tf.Print(true_questions, [tf.shape(true_questions), true_questions], "True Questions Shape & Tensor")
-        true_question_lengths = tf.Print(true_question_lengths, [true_question_lengths], "True Question Lengths")
-        question_masks = tf.Print(question_masks, [tf.shape(question_masks), question_masks], "Question Masks Shape & Tensor")
+        # true_questions = tf.Print(true_questions, [tf.shape(true_questions), true_questions], "True Questions Shape & Tensor")
+        # true_question_lengths = tf.Print(true_question_lengths, [true_question_lengths], "True Question Lengths")
+        # question_masks = tf.Print(question_masks, [tf.shape(question_masks), question_masks], "Question Masks Shape & Tensor")
 
-        questions = tf.Print(questions, [tf.shape(questions), questions], "Generated Questions Shape & Tensor")
-        question_lengths = tf.Print(question_lengths, [question_lengths], "Generated Question Lengths")
-        question_logits = tf.Print(question_logits, [tf.shape(question_logits), question_logits], "Question Logits Shape & Tensor")
+        # questions = tf.Print(questions, [tf.shape(questions), questions], "Generated Questions Shape & Tensor")
+        # question_lengths = tf.Print(question_lengths, [question_lengths], "Generated Question Lengths")
+        # question_logits = tf.Print(question_logits, [tf.shape(question_logits), question_logits], "Question Logits Shape & Tensor", summarize=15)
 
 
         #Encode the true questions
@@ -206,8 +206,8 @@ class model():
         cumulative_rewards = []
 
         for i in xrange(self.config.num_dialog_rounds):
-            x = tf.constant(i)
-            loss = tf.Print(loss, [x], "dialog_number: ")
+            # x = tf.constant(i)
+            # loss = tf.Print(loss, [x], "dialog_number: ")
             outputs = self.sl_run_dialog_round(i, Q_state, A_state, A_fact)
             # outputs = tf.cond(
             #     tf.greater_equal(x, self.num_supervised_learning_rounds),
