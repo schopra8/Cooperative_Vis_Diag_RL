@@ -134,8 +134,6 @@ class model():
         )
 
         #Generate facts from true questions and answers
-        true_questions = tf.concat([true_questions[:,1:], tf.zeros([tf.shape(self.true_questions)[0],1], dtype = tf.int32)], axis=1)
-        true_answers = tf.concat([true_answers[:,1:], tf.zeros([tf.shape(self.true_answers)[0],1], dtype = tf.int32)], axis=1)
         true_questions = true_questions[:,:tf.shape(question_logits)[1]]
         question_masks = question_masks[:,:tf.shape(question_logits)[1]]
         true_answers = true_answers[:,:tf.shape(answer_logits)[1]]
@@ -153,6 +151,8 @@ class model():
         #Guess image
         image_guess = self.Qbot.generate_image_representations(Q_state)
         #### Loss for supervised training
+        true_questions = tf.concat([true_questions[:,1:], tf.zeros([tf.shape(self.true_questions)[0],1], dtype = tf.int32)], axis=1)
+        true_answers = tf.concat([true_answers[:,1:], tf.zeros([tf.shape(self.true_answers)[0],1], dtype = tf.int32)], axis=1)
         question_loss = tf.reduce_mean(
             tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
                             logits=question_logits, labels=true_questions)*question_masks, axis=1))
