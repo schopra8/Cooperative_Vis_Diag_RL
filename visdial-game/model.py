@@ -60,10 +60,12 @@ class model():
         question_logits, question_lengths, generated_questions = self.Qbot.get_questions(Q_state, supervised_training=False)
 
         generated_questions = tf.Print(generated_questions, [tf.argmax(question_logits, axis=2), self.true_questions] , summarize=15)
+        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="q_bot")
+        generated_questions = tf.Print(generated_questions, variables, "RL variables:", summarize=15)
 
         # generated_questions = tf.Print(generated_questions, [tf.shape(generated_questions), generated_questions], "Generated Questions Shape & Tensor")
         #Find embeddings of questions
-        question_masks = tf.cast(tf.equal(generated_questions, tf.zeros(tf.shape(generated_questions), dtype=tf.int32)), tf.float32)
+        question_masks = 1 - tf.cast(tf.equal(generated_questions, tf.zeros(tf.shape(generated_questions), dtype=tf.int32)), tf.float32)
         #A-bot encodes questions
         encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, generated_questions), question_lengths)
         #A-bot updates state
@@ -110,6 +112,8 @@ class model():
             supervised_training=True
         )
 
+        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="q_bot")
+        question_logits = tf.Print(question_logits, variables, "RL variables:", summarize=15)
         # question_logits = tf.Print(question_logits, [tf.argmax(question_logits, axis=2), true_questions], summarize=15)
         
         #Encode the true questions
