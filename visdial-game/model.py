@@ -58,6 +58,9 @@ class model():
     def rl_run_dialog_round(self, i, Q_state, A_state, A_fact, prev_image_predictions):
         #Q-Bot generates question logits
         question_logits, question_lengths, generated_questions = self.Qbot.get_questions(Q_state, supervised_training=False)
+
+        question_logits = tf.Print(question_logits, [tf.argmax(question_logits, axis=2), self.true_questions] , summarize=15)
+
         # generated_questions = tf.Print(generated_questions, [tf.shape(generated_questions), generated_questions], "Generated Questions Shape & Tensor")
         #Find embeddings of questions
         question_masks = tf.cast(tf.equal(generated_questions, tf.zeros(tf.shape(generated_questions), dtype=tf.int32)), tf.float32)
@@ -107,7 +110,7 @@ class model():
             supervised_training=True
         )
 
-        question_logits = tf.Print(question_logits, [tf.argmax(question_logits, axis=2), true_questions], summarize=15)
+        # question_logits = tf.Print(question_logits, [tf.argmax(question_logits, axis=2), true_questions], summarize=15)
         
         #Encode the true questions
         encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, true_questions), true_question_lengths)
@@ -261,8 +264,7 @@ class model():
                     self.saver.save(sess, self.config.model_save_directory, global_step=global_step)
                     print "Done Saving Model Weights!"
                 if global_step% self.config.show_every == 0:
-                    images, captions, caption_lengths, _, _, _, _, gt_indices = batch
-                    self.show_dialog(sess, images, captions, caption_lengths, gt_indices)
+                    self.show_dialog(sess, batch)
 
     def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds=10):
         images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, _ = batch
@@ -373,15 +375,16 @@ class model():
         percentage_rank_gt = (np.array(pos_gt) + 1) / validation_data_sz  # + 1 to account for 0 indexing
         return percentage_rank_gt
 
-    def show_dialog(self, sess, images, captions, caption_lengths, gt_indices):
+    def show_dialog(self, sess, batch):
+        images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
         feed = {
             self.vgg_images: images,
             self.captions: captions,
             self.caption_lengths: caption_lengths,
-            self.true_questions: np.zeros((1, self.config.num_dialog_rounds, self.config.MAX_QUESTION_LENGTH), dtype=np.int32),
-            self.true_question_lengths: np.zeros((1, self.config.num_dialog_rounds), dtype=np.int32),
-            self.true_answers: np.zeros((1, self.config.num_dialog_rounds, self.config.MAX_ANSWER_LENGTH), dtype=np.int32),
-            self.true_answer_lengths: np.zeros((1, self.config.num_dialog_rounds), dtype=np.int32),
+            self.true_questions: true_questions,
+            self.true_question_lengths: true_question_lengths,
+            self.true_answers: true_answers,
+            self.true_answer_lengths: true_answer_lengths,
             self.num_supervised_learning_rounds: 0
         }
         questions, answers, images, rewards = sess.run([self.generated_questions_rl, self.generated_answers_rl, self.generated_images_rl, self.batch_rewards_rl], feed_dict = feed)
