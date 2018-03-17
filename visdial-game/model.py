@@ -261,7 +261,7 @@ class model():
 
                     print("DEV MRR: {}").format(dev_MRR)
 
-                    self.write_summary(tf.reduce_mean(dev_MRR), "dev/MRR_average", summary_writer, global_step)
+                    #self.write_summary(tf.reduce_mean(dev_MRR), "dev/MRR_average", summary_writer, global_step)
                     if dev_loss < best_dev_loss:
                         print "New Best Model! Saving Best Model Weights!"
                         best_dev_loss = dev_loss
