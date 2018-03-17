@@ -97,9 +97,9 @@ class model():
 
     def sl_run_dialog_round(self, i, Q_state, A_state, A_fact):
         ## ACCESS TRUE QUESTIONS AND ANSWERS FOR THIS ROUND OF DIALOG
-        true_questions = self.true_questions[:,i,1:]
+        true_questions = self.true_questions[:,i,:]
         true_question_lengths = self.true_question_lengths[:,i]
-        true_answers = self.true_answers[:,i,1:]
+        true_answers = self.true_answers[:,i,:]
         true_answer_lengths = self.true_answer_lengths[:,i]
         #Generate questions based on current state
         question_masks = 1-tf.cast(tf.equal(true_questions, tf.zeros(tf.shape(true_questions), dtype=tf.int32)), tf.float32)
