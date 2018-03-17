@@ -110,8 +110,14 @@ class model():
             true_question_lengths=true_question_lengths,
             supervised_training=True
         )
-
-        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="q_bot")
+        # question_logits_new, question_lengths_new, questions_new = self.Qbot.get_questions(
+        #     Q_state,
+        #     true_questions=true_questions,
+        #     true_question_lengths=true_question_lengths,
+        #     supervised_training=False
+        # )
+        # question_logits = tf.Print(question_logits, [true_questions, questions, questions_new], "True Q, Training Q, Greedy Q:", summarize= 10)
+        # variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="q_bot")
         # question_logits = tf.Print(question_logits, variables, "SL variables:", summarize=15)
         # question_logits = tf.Print(question_logits, [tf.argmax(question_logits, axis=2), true_questions], summarize=15)
         
@@ -133,7 +139,7 @@ class model():
         true_answers = true_answers[:,:tf.shape(answer_logits)[1]]
         answer_masks = answer_masks[:,:tf.shape(answer_logits)[1]]
 
-        facts, fact_lengths = self.concatenate_q_a(true_questions, true_question_lengths, true_answers, true_answer_lengths)
+        facts, fact_lengths = self.concatenate_q_a(true_questions, question_lengths, true_answers, answer_lengths)
 
         embedded_facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
 

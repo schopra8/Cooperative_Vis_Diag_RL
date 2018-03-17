@@ -52,7 +52,7 @@ class AnswerDecoder(object):
         ===================================
         INPUTS:
         states: float of shape (batch_size, hidden_dimension) - The state/history encoding for this round of dialog
-        true_answers: float of shape (batch_size, max_answer_length, embedding_size) || Assumed that answers have been padded to max_answer_length
+        true_answers: float of shape (batch_size, max_answer_length) || Assumed that answers have been padded to max_answer_length
         true_answer_lengths: int of shape(batch_size) - How long is the actual answers?
         supervised_training: bool True: supervised pretraining || False: RL training
         ===================================
@@ -62,8 +62,9 @@ class AnswerDecoder(object):
         """
         with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             if supervised_training:
-                embedded_answers = self.embedding_lookup(true_answers)
-                helper = tf.contrib.seq2seq.TrainingHelper(embedded_answers, true_answer_lengths, time_major = False)
+                true_answers_no_start = true_answers[:,1:]
+                embedded_answers = self.embedding_lookup(true_answers_no_start)
+                helper = tf.contrib.seq2seq.TrainingHelper(embedded_answers, true_answer_lengths-1, time_major = False)
                 decoder = tf.contrib.seq2seq.BasicDecoder(
                 cell=self.cell,
                 helper=helper,
