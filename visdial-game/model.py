@@ -57,20 +57,8 @@ class model():
 
     def rl_run_dialog_round(self, i, Q_state, A_state, A_fact, prev_image_predictions):
         #Q-Bot generates question logits
-        # question_logits, question_lengths, generated_questions = self.Qbot.get_questions(Q_state, supervised_training=False)
-
-        # DEBUGGING: REMOVE THIS
-        true_questions = self.true_questions[:,i,:]
-        true_question_lengths = self.true_question_lengths[:,i]
-        true_answers = self.true_answers[:,i,:]
-        true_answer_lengths = self.true_answer_lengths[:,i]
-        question_logits, question_lengths, generated_questions = self.Qbot.get_questions(
-            Q_state,
-            true_questions=true_questions,
-            true_question_lengths=true_answer_lengths,
-            supervised_training=True
-        )
-        generated_questions = tf.Print(generated_questions, [tf.argmax(question_logits, axis=2), self.true_questions] , summarize=15)
+        question_logits, question_lengths, generated_questions = self.Qbot.get_questions(Q_state, supervised_training=False)
+        # generated_questions = tf.Print(generated_questions, [tf.argmax(question_logits, axis=2), self.true_questions] , summarize=15)
         # variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="q_bot")
         # generated_questions = tf.Print(generated_questions, variables, "RL variables:", summarize=15)
 
