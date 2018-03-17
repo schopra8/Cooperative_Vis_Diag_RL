@@ -97,9 +97,9 @@ class model():
 
     def sl_run_dialog_round(self, i, Q_state, A_state, A_fact):
         ## ACCESS TRUE QUESTIONS AND ANSWERS FOR THIS ROUND OF DIALOG
-        true_questions = tf.concat([self.true_questions[:,i,1:], tf.zeros([tf.shape(self.true_questions)[0],1], dtype = tf.int32)], axis=1)
+        true_questions = self.true_questions[:,i,1:]
         true_question_lengths = self.true_question_lengths[:,i]
-        true_answers = tf.concat([self.true_answers[:,i,1:], tf.zeros([tf.shape(self.true_answers)[0],1], dtype = tf.int32)], axis=1)
+        true_answers = self.true_answers[:,i,1:]
         true_answer_lengths = self.true_answer_lengths[:,i]
         #Generate questions based on current state
         question_masks = 1-tf.cast(tf.equal(true_questions, tf.zeros(tf.shape(true_questions), dtype=tf.int32)), tf.float32)
@@ -134,6 +134,8 @@ class model():
         )
 
         #Generate facts from true questions and answers
+        true_questions = tf.concat([true_questions[:,1:], tf.zeros([tf.shape(self.true_questions)[0],1], dtype = tf.int32)], axis=1)
+        true_answers = tf.concat([true_answers[:,1:], tf.zeros([tf.shape(self.true_answers)[0],1], dtype = tf.int32)], axis=1)
         true_questions = true_questions[:,:tf.shape(question_logits)[1]]
         question_masks = question_masks[:,:tf.shape(question_logits)[1]]
         true_answers = true_answers[:,:tf.shape(answer_logits)[1]]
