@@ -110,13 +110,14 @@ class model():
             true_question_lengths=true_question_lengths,
             supervised_training=True
         )
-        # question_logits_new, question_lengths_new, questions_new = self.Qbot.get_questions(
-        #     Q_state,
-        #     true_questions=true_questions,
-        #     true_question_lengths=true_question_lengths,
-        #     supervised_training=False
-        # )
+        question_logits_new, question_lengths_new, questions_new = self.Qbot.get_questions(
+            Q_state,
+            true_questions=true_questions,
+            true_question_lengths=true_question_lengths,
+            supervised_training=False
+        )
         # question_logits = tf.Print(question_logits, [true_questions, questions, questions_new], "True Q, Training Q, Greedy Q:", summarize= 10)
+        # question_logits = tf.Print(question_logits, [question_logits, question_logits_new], "Training Q logits, Greedy Q logits:", summarize= 10)
         # variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="q_bot")
         # question_logits = tf.Print(question_logits, variables, "SL variables:", summarize=15)
         # question_logits = tf.Print(question_logits, [tf.argmax(question_logits, axis=2), true_questions], summarize=15)

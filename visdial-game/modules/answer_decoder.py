@@ -52,7 +52,7 @@ class AnswerDecoder(object):
         ===================================
         INPUTS:
         states: float of shape (batch_size, hidden_dimension) - The state/history encoding for this round of dialog
-        true_answers: float of shape (batch_size, max_answer_length) || Assumed that answers have been padded to max_answer_length
+        true_answers: float of shape (batch_size, max_answer_length, embedding_size) || Assumed that answers have been padded to max_answer_length
         true_answer_lengths: int of shape(batch_size) - How long is the actual answers?
         supervised_training: bool True: supervised pretraining || False: RL training
         ===================================
@@ -62,9 +62,8 @@ class AnswerDecoder(object):
         """
         with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             if supervised_training:
-                true_answers_no_start = true_answers[:,1:]
-                embedded_answers = self.embedding_lookup(true_answers_no_start)
-                helper = tf.contrib.seq2seq.TrainingHelper(embedded_answers, true_answer_lengths-1, time_major = False)
+                embedded_answers = self.embedding_lookup(true_answers)
+                helper = tf.contrib.seq2seq.TrainingHelper(embedded_answers, true_answer_lengths, time_major = False)
                 decoder = tf.contrib.seq2seq.BasicDecoder(
                 cell=self.cell,
                 helper=helper,
@@ -74,7 +73,7 @@ class AnswerDecoder(object):
             # final_outputs = (batch_size, max_sequence_length, hidden_size)
             # final_sequence_lengths = (batch_size)
                 final_outputs, _, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
-                                                        impute_finished=True)
+                                                        impute_finished=False)
                 return final_outputs.rnn_output, final_sequence_lengths, final_outputs.sample_id
             else:
                 start_tokens = tf.ones([tf.shape(states)[0]], dtype=tf.int32) * self.start_token_idx
@@ -86,5 +85,5 @@ class AnswerDecoder(object):
                     output_layer=self.vocab_logits_layer,
                 )
                 final_outputs, _, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
-                                                        impute_finished=True, maximum_iterations=self.max_answer_length)
+                                                        impute_finished=False, maximum_iterations=self.max_answer_length)
                 return final_outputs.rnn_output, final_sequence_lengths, final_outputs.sample_id

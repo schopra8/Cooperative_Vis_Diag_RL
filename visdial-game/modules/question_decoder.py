@@ -51,7 +51,7 @@ class QuestionDecoder(object):
         ===================================
         INPUTS:
         states: float of shape (batch_size, hidden_dimension) - The state/history encoding for this round of dialog
-        true_questions: float of shape (batch_size, max_question_length) || Assumed that questions have been padded to max_question_size
+        true_questions: float of shape (batch_size, max_question_length, embedding_size) || Assumed that questions have been padded to max_question_size
         true_question_lengths: int of shape(batch_size) - How long is the actual question?
         supervised_training: bool True: supervised pretraining|| False: RL training
         ===================================
@@ -62,9 +62,8 @@ class QuestionDecoder(object):
         # states = tf.Print(states,[states, tf.shape(states), tf.shape(true_question_lengths)], "input states:")
         with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             if supervised_training:
-                true_questions_no_start = true_questions[:,1:]
-                embedded_questions = self.embedding_lookup(true_questions_no_start)
-                helper = tf.contrib.seq2seq.TrainingHelper(embedded_questions, true_question_lengths-1, time_major = False)
+                embedded_questions = self.embedding_lookup(true_questions)
+                helper = tf.contrib.seq2seq.TrainingHelper(embedded_questions, true_question_lengths, time_major = False)
                 decoder = tf.contrib.seq2seq.BasicDecoder(
                     cell=self.cell,
                     helper=helper,
@@ -75,7 +74,7 @@ class QuestionDecoder(object):
             #final_outputs = (batch_size, max_sequence_length, hidden_size)
             #final_sequence_lengths = (batch_size)
                 final_outputs, _ , final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
-                                                        impute_finished=True)
+                                                        impute_finished=False)
                 # final_sequence_lengths = tf.Print(final_sequence_lengths, [states,  final_outputs.rnn_output, final_outputs.sample_id], "DEBUGGING TRAINING EMBEDDING STUFF:",summarize = 15)
                 return final_outputs.rnn_output, final_sequence_lengths, final_outputs.sample_id
             else:
@@ -88,6 +87,6 @@ class QuestionDecoder(object):
                     output_layer=self.vocab_logits_layer,
                 )
                 final_outputs, _, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, 
-                                                        impute_finished=True, maximum_iterations = self.max_question_length)
+                                                        impute_finished=False, maximum_iterations = self.max_question_length)
                 # final_sequence_lengths= tf.Print(final_sequence_lengths, [states,  final_outputs.rnn_output, final_outputs.sample_id], "DEBUGGING GREEDY EMBEDDING STUFF:",summarize = 15)
                 return final_outputs.rnn_output, final_sequence_lengths, final_outputs.sample_id
