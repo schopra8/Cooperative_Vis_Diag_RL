@@ -25,8 +25,8 @@ class model():
         self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.config.keep)
 
         # Files are expected to be in ../data
-        self.dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
-                            'data_img.h5', ['train'])
+        # self.dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
+                            # 'data_img.h5', ['train'])
 
     def add_placeholders(self):
         """
@@ -186,7 +186,6 @@ class model():
             generated_answers.append(answers)
             cumulative_rewards.append(rewards)
             generated_images.append(image_predictions)
-            prev_image_predictions = image_predictions
 
         return loss, generated_questions, generated_answers, generated_images, cumulative_rewards
 
@@ -203,7 +202,6 @@ class model():
         )
         A_fact = self.Abot.encode_facts(caption_embeddings, self.caption_lengths)
         prev_image_predictions = self.Qbot.generate_image_representations(Q_state)
-        image_loss = 0.0
         loss = 0.0
         generated_questions = []
         generated_answers = []
@@ -227,17 +225,18 @@ class model():
         """
         Train the Q-Bot and A-Bot first with supervised learning, then curriculum learning, and then completely with RL.
         """
+        self.evaluate(sess, 0, True)
         summary_writer = tf.summary.FileWriter(self.config.model_save_directory, sess.graph)
         best_dev_loss = float('Inf')
         curriculum = 10
         for i in xrange(num_epochs):
             num_batches = self.config.NUM_TRAINING_SAMPLES / batch_size + 1
             progbar = tf.keras.utils.Progbar(target=num_batches)
-            if i<self.config.SL_EPOCHS:
+            if i < self.config.SL_EPOCHS:
                 curriculum = 10
             else:
                 curriculum -= 1
-            if curriculum <0:
+            if curriculum < 0:
                 curriculum = 0
             batch_generator = self.dataloader.getTrainBatch(batch_size)
             for j, batch in enumerate(batch_generator):
@@ -292,14 +291,14 @@ class model():
         summary.value.add(tag=tag, simple_value=value)
         summary_writer.add_summary(summary, global_step)
 
-    def evaluate(self, sess, epoch, compute_MRR = False):
+    def evaluate(self, sess, epoch, compute_MRR=False):
         """
         Evalaute the bots with validation data.
         """
         # files are expected to be in ../data
         eval_dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
                             'data_img.h5', ['val'])
-        dev_loss = 0
+        dev_loss = 0.0
         dev_batch_generator = eval_dataloader.getEvalBatch(self.config.batch_size)
         num_batches = math.ceil(self.config.NUM_VALIDATION_SAMPLES / self.config.batch_size + 1)
         progbar = tf.keras.utils.Progbar(target=num_batches)
@@ -317,7 +316,7 @@ class model():
 
     def eval_on_batch(self, sess, batch):
         """
-        Evalaute the bots on a batch of data.
+        Evaluate the bots on a batch of data.
         """
         images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, _ = batch
         feed = {
@@ -339,8 +338,15 @@ class model():
         We then sort all the images in the validation set according to their distance to the
         given prediction and find the ranking of the true input image.
         """
-        validation_data_sz = tf.shape(images)[0]
-        batch_data_sz = tf.shape(preds)[0]
+        print 'computing MRR'
+        validation_data_sz = images.shape[0]
+        batch_data_sz = preds.shape[0]
+        print validation_data_sz, batch_data_sz
+
+        print preds.shape[0]
+        print type(preds.shape[0])
+        print images.shape[0]
+        print type(images.shape[0])
 
         # Tile the predictions and images tensors to be of the same dimenions,
         # namely (Validation Data Size, Preds, Img Dimensions)
@@ -348,18 +354,20 @@ class model():
         images_expanded = tf.tile(tf.expand_dims(images, axis=1), tf.constant([1, batch_data_sz, 1]))
 
         # Compute L2 distances.
-        # Each column represents L2 distances between a predicted image and all val images.
+        # Each row represents L2 distances between a predicted image and all val images.
         # Dim: (Preds, Validation Data Size)
-        l2_distances = tf.transpose(tf.squeeze(tf.sqrt(tf.reduce_sum(tf.square(preds_expanded - images_expanded), axis=2))))
+        l2_distances = tf.transpose(tf.reduce_sum(tf.square(preds_expanded - images_expanded), axis=2))
+        print l2_distances.shape
 
         # Sort the values in each row, i.e. sort all the similarity between all validation images
         # and predicted image.
         # Dim: (Preds, Validation Data Size)
         _, sorted_img_indices = tf.nn.top_k(
-            tf.transpose(l2_distances), # (preds, validation data size)
+            l2_distances, # (preds, validation data size)
             k=validation_data_sz,
-            sorted=True,
+            sorted=True
         )
+        print sorted_img_indices
 
         # Unstack this matrix into a list of tensors
         # Each tensor in the list provides the indices of the validation images, in order from
@@ -371,6 +379,7 @@ class model():
         for i, l in enumerate(sorted_img_indices_list):
             sorted_gt_pos = tf.argmax(tf.cast(tf.equal(l, gt_indices[i]), dtype=tf.int32), axis=0)
             pos_gt.append(sorted_gt_pos)
+        # TODO: is higher or lower better? right now 0 means perfect
         percentage_rank_gt = (np.array(pos_gt) + 1) / validation_data_sz  # + 1 to account for 0 indexing
         return percentage_rank_gt
 
