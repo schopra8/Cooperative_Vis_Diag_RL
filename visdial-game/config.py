@@ -24,6 +24,7 @@ class Config():
     max_gradient_norm = 5
     model_save_directory = "../visdial_results/"
     best_save_directory = "../visdial_results/best"
+    show_every = 10
     if not os.path.isdir(model_save_directory):
         os.makedirs(model_save_directory)
     if not os.path.isdir(best_save_directory):

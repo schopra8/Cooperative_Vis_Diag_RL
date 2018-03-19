@@ -25,23 +25,20 @@ class QuestionEncoder(object):
         ===================================
         """
         with tf.variable_scope(self.scope):
-                        # Stack RNN Cells: input -> basic rnn cell -> basic lstm cell -> output
-            # cells = [tf.contrib.rnn.GRUCell(self.hidden_dimension)]
-            # self.cell = tf.contrib.rnn.MultiRNNCell(cells)
             self.cell = tf.contrib.rnn.GRUCell(self.hidden_dimension)
 
-    def encode_questions(self, questions):
+    def encode_questions(self, questions, question_lengths):
         """
         Given a question, output an embedding for the question.
         ===================================
         INPUTS:
-        questions: float - (batch_size, max_sequence_length, vocabulary_size)
+        questions: float - (batch_size, max_sequence_length)
         """
         with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             batch_size = tf.shape(questions)[0]
             _, encoded_questions = tf.nn.dynamic_rnn(
                 self.cell,
                 questions,
-                dtype=tf.float32
+                dtype=tf.float32, sequence_length = question_lengths
             )
             return encoded_questions
