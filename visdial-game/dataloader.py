@@ -154,18 +154,21 @@ class DataLoader(object):
 
         return images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, inds
 
-if __name__ == '__main__':
-    dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
-                                                        'data_img.h5', ['train'], verbose=True)
-    batch_generator = dataloader.getTrainBatch(20)
-    count = 0
-    for batch in batch_generator:
-        if count % 100 == 0:
-            print count
-        count += 1
+    def getEvalImageEmbeddings(self):
+        return self.data['val_img_fv']
 
-    # eval_dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
-    #                                                     'data_img.h5', ['val'], verbose=True)
+if __name__ == '__main__':
+    # dataloader = DataLoader('visdial_params.json', 'visdial_data.h5', 'data_img.h5', ['train'], verbose=True)
+    # batch_generator = dataloader.getTrainBatch(20)
+    # count = 0
+    # for batch in batch_generator:
+    #     if count % 100 == 0:
+    #         print count
+    #     count += 1
+
+    eval_dataloader = DataLoader('visdial_params.json', 'visdial_data.h5', 'data_img.h5', ['val'], verbose=True)
+    imgs = eval_dataloader.getEvalImageEmbeddings()
+    print imgs.shape
     # batch_generator = eval_dataloader.getEvalBatch(20)
     # count = 0
     # for batch in batch_generator:
