@@ -386,7 +386,7 @@ class model():
             self.num_supervised_learning_rounds: 0
         }
 
-        questions, answers, images, rewards = sess.run([self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards], feed_dict = feed)
+        questions, answers, images, rewards = sess.run([self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards], feed_dict=feed)
         ind2word = self.dataloader.ind2word
         ind2word[0] = '<NONE>'
         questions = [np.vectorize(ind2word.__getitem__)(np.asarray(question)) for question in questions]
