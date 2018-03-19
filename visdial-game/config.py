@@ -17,7 +17,8 @@ class Config():
     IMG_REP_DIM = 300
     EMBEDDING_SIZE = 300
     learning_rate = 1e-3
-    batch_size = 3
+    batch_size = 40
+    eval_batch_size = 15
     num_dialog_rounds = 10
     max_gradient_norm = 5
     model_save_directory = "../visdial_results/"
