@@ -20,6 +20,7 @@ class Config():
     EMBEDDING_SIZE = 300
     learning_rate = 1e-3
     batch_size = 40
+    eval_batch_size = 15
     num_dialog_rounds = 10
     max_gradient_norm = 5
     model_save_directory = "../visdial_results/"
@@ -29,7 +30,7 @@ class Config():
         os.makedirs(model_save_directory)
     if not os.path.isdir(best_save_directory):
         os.makedirs(best_save_directory)
-    eval_every = 1
+    eval_every = 1000
     save_every = 1000
     #number of models to keep
     keep = 1

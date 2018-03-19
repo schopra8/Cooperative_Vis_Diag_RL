@@ -304,7 +304,7 @@ class model():
                             'data_img.h5', ['val'])
         dev_loss = 0
         dev_mrr = tf.zeros(shape=[self.config.num_dialog_rounds])
-        dev_batch_generator = eval_dataloader.getEvalBatch(self.config.batch_size)
+        dev_batch_generator = eval_dataloader.getEvalBatch(self.config.eval_batch_size)
         num_batches = math.ceil(self.config.NUM_VALIDATION_SAMPLES / self.config.batch_size + 1)
 
         num_batches = 1
@@ -356,7 +356,6 @@ class model():
 
         # TODO: Fetch all validation images
         embedded_ground_truth_images = tf.expand_dims(tf.expand_dims(tf.stack(self.Abot.convert_images(self.vgg_images)), axis=0), axis=3)
-        print embedded_ground_truth_images
         embedded_ground_truth_images = tf.Print(embedded_ground_truth_images, [embedded_ground_truth_images, tf.shape(embedded_ground_truth_images)], summarize=15)
 
         # Tile the predictions and images tensors to be of the same dimenions,
@@ -365,7 +364,6 @@ class model():
         images_expanded = tf.tile(embedded_ground_truth_images, tf.constant([1, self.config.num_dialog_rounds, 1, 1]))
         batch_tiling = tf.multiply(tf.constant([1, 1, 1, 1]) * batch_data_sz, tf.constant([0, 0, 0, 1]))
         images_expanded = tf.transpose(tf.tile(images_expanded, batch_tiling), perm=[0, 1, 3, 2])
-        print images_expanded
 
         # Compute L2 distances.
         # Each column represents L2 distances between a predicted image and all val images.
@@ -384,16 +382,20 @@ class model():
         # Unstack this matrix into a list of tensors
         # Each tensor in the list provides the indices of the validation images, in order from
         # farthest from the prediction, to closest to the prediction.
-        sorted_img_indices_list = tf.unstack(sorted_img_indices)
+        partitions = tf.range(self.config.eval_batch_size)
+        partitioned_sorted_img_indices = tf.dynamic_partition(sorted_img_indices, partitions, self.config.eval_batch_size)
+        sorted_img_indices_list = tf.unstack(partitioned_sorted_img_indices)
+        print sorted_img_indices_list
 
         # Find the position of the image index corresponding to ground truth picture
-        pos_gt = np.zeros(batch_data_sz, self.config.num_dialog_rounds)
+        pos_gt = []
         for i, l in enumerate(sorted_img_indices_list):
-            individual_dialog_rounds = tf.unstack(l)
-            for j, dialog_round in enumerate(individual_dialog_rounds):
+            dialog_gt = []
+            for j in xrange(self.config.num_dialog_rounds):
                 sorted_gt_pos = tf.argmax(tf.cast(tf.equal(dialog_round, self.gt_indices[i]), dtype=tf.int32), axis=0)
-                pos_gt[i][j] = sorted_gt_pos
-        percentage_rank_gt = pos_gt + 1 / float(validation_data_sz)  # + 1 to account for 0 indexing
+                dialog_gt.append(sorted_gt_pos)
+            pos_gt.append(dialog_gt)
+        percentage_rank_gt = np.array(pos_gt) + 1 / float(validation_data_sz)  # + 1 to account for 0 indexing
 
         tf.Print(sorted_img_indices_list, [l2_distances, sorted_img_indices_list], "debugging", summarize=15)
 
