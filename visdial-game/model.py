@@ -392,6 +392,7 @@ class model():
         for i, l in enumerate(sorted_img_indices_list):
             dialog_gt = []
             for j in xrange(self.config.num_dialog_rounds):
+                dialog_round = tf.squeeze(l[:, j, :], axis=0)
                 sorted_gt_pos = tf.argmax(tf.cast(tf.equal(dialog_round, self.gt_indices[i]), dtype=tf.int32), axis=0)
                 dialog_gt.append(sorted_gt_pos)
             pos_gt.append(dialog_gt)
@@ -416,7 +417,7 @@ class model():
             self.true_answer_lengths: true_answer_lengths,
             self.num_supervised_learning_rounds: 0
         }
-        questions, answers, images, rewards = sess.run([self.generated_questions_rl, self.generated_answers_rl, self.generated_images_rl, self.batch_rewards_rl], feed_dict=feed)
+        questions, answers, images, rewards = sess.run([self.generated_questions_rl, self.generated_answers_rl, self.generated_images_rl, self.batch_rewards_rl], feed_dict = feed)
         ind2word = self.dataloader.ind2word
         ind2word[0] = '<NONE>'
         questions = [np.vectorize(ind2word.__getitem__)(np.asarray(question)) for question in questions]
