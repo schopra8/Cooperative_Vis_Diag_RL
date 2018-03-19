@@ -306,7 +306,7 @@ class model():
         dev_batch_generator = eval_dataloader.getEvalBatch(self.config.eval_batch_size)
         num_batches = math.ceil(self.config.NUM_VALIDATION_SAMPLES / self.config.batch_size + 1)
 
-        num_batches = 1
+        num_batches = 1 # TODO: what is this doing?
 
         progbar = tf.keras.utils.Progbar(target=num_batches)
         for i, batch in enumerate(dev_batch_generator):
@@ -339,7 +339,7 @@ class model():
 
         if run_mrr:
             feed[self.generated_images] = images
-            mrr = sess.run([self.mrr], feed_dict = feed)
+            mrr = sess.run([self.mrr], feed_dict=feed)
         else:
             mrr = None
         return loss, images, answers, questions, rewards, mrr
@@ -355,7 +355,7 @@ class model():
 
         # TODO: Fetch all validation images
         embedded_ground_truth_images = tf.expand_dims(tf.expand_dims(tf.stack(self.Abot.convert_images(self.vgg_images)), axis=0), axis=3)
-        embedded_ground_truth_images = tf.Print(embedded_ground_truth_images, [embedded_ground_truth_images, tf.shape(embedded_ground_truth_images)], summarize=15)
+        # embedded_ground_truth_images = tf.Print(embedded_ground_truth_images, [embedded_ground_truth_images, tf.shape(embedded_ground_truth_images)], summarize=15)
 
         # Tile the predictions and images tensors to be of the same dimenions,
         # namely (Validation Data Size, Num Rounds of Dialogs, Preds, Img Dimensions)
@@ -377,7 +377,7 @@ class model():
             k=validation_data_sz,
             sorted=True
         )
-        print sorted_img_indices
+        # print sorted_img_indices
 
         # Unstack this matrix into a list of tensors
         # Each tensor in the list provides the indices of the validation images, in order from
@@ -385,14 +385,16 @@ class model():
         partitions = tf.range(self.config.eval_batch_size)
         partitioned_sorted_img_indices = tf.dynamic_partition(sorted_img_indices, partitions, self.config.eval_batch_size)
         sorted_img_indices_list = tf.unstack(partitioned_sorted_img_indices)
-        print sorted_img_indices_list
+        # print len(sorted_img_indices_list)
+        # print sorted_img_indices_list
 
         # Find the position of the image index corresponding to ground truth picture
         pos_gt = []
         for i, l in enumerate(sorted_img_indices_list):
             dialog_gt = []
+            print l.shape
             for j in xrange(self.config.num_dialog_rounds):
-                sorted_gt_pos = tf.argmax(tf.cast(tf.equal(dialog_round, self.gt_indices[i]), dtype=tf.int32), axis=0)
+                sorted_gt_pos = tf.argmax(tf.cast(tf.equal(l[j], self.gt_indices[i]), dtype=tf.int32), axis=0)
                 dialog_gt.append(sorted_gt_pos)
             pos_gt.append(dialog_gt)
         # TODO: is higher or lower better? right now 0 means perfect
