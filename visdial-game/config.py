@@ -28,7 +28,7 @@ class Config():
         os.makedirs(model_save_directory)
     if not os.path.isdir(best_save_directory):
         os.makedirs(best_save_directory)
-    eval_every = 1000
+    eval_every = 1
     save_every = 1000
     #number of models to keep
     keep = 1
