@@ -24,8 +24,6 @@ class QHistoryEncoder(object):
         ===================================
         """
         with tf.variable_scope(self.scope):
-            # cells = [tf.contrib.rnn.GRUCell(self.hidden_dimension)]
-            # self.cell = tf.contrib.rnn.MultiRNNCell(cells)
             self.cell = tf.contrib.rnn.GRUCell(self.hidden_dimension)
 
     def generate_next_state(self, current_facts, prev_states=None):
