@@ -9,7 +9,8 @@ import pdb
 
 class model():
     def __init__(self, config):
-        """ Sets up the configuration parameters, creates Q Bot + A Bot.
+        """
+        Sets up the configuration parameters, creates Q Bot + A Bot.
         """
         self.config = config
         self.embedding_matrix = tf.get_variable("word_embeddings", shape=[self.config.VOCAB_SIZE, self.config.EMBEDDING_SIZE])
@@ -23,7 +24,7 @@ class model():
         self.summaries = tf.summary.merge_all()
         self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.config.keep)
 
-        # files are expected to be in ../data
+        # Files are expected to be in ../data
         self.dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
                             'data_img.h5', ['train'])
 
@@ -41,6 +42,9 @@ class model():
         self.num_supervised_learning_rounds = tf.placeholder(tf.int32, shape=[])
 
     def add_loss_op(self):
+        """
+        Construct the loss op. 
+        """
         self.loss, self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards = self.run_dialog_sl()
         self.loss_rl, self.generated_questions_rl, self.generated_answers_rl, self.generated_images_rl, self.batch_rewards_rl = self.run_dialog_rl()
         avg_batch_rewards = tf.add_n(self.batch_rewards) / len(self.batch_rewards)
@@ -48,141 +52,125 @@ class model():
         tf.summary.scalar('avg_batch_rewards', avg_batch_rewards)
 
     def add_update_op(self):
+        """
+        Construct the update op for our networks.
+        """
         optimizer = tf.train.AdamOptimizer(learning_rate=tf.train.exponential_decay(self.config.learning_rate, self.global_step, 1000, 0.997592083))
         grads, variables = map(list, zip(*optimizer.compute_gradients(self.loss)))
-        # clip global_norm or norm??
         clipped_grads, _ = tf.clip_by_global_norm(grads, self.config.max_gradient_norm)
         clipped_grads_vars = zip(clipped_grads, variables)
         self.update_op = optimizer.apply_gradients(clipped_grads_vars, global_step=self.global_step)
 
     def rl_run_dialog_round(self, i, Q_state, A_state, A_fact, prev_image_predictions):
-        #Q-Bot generates question logits
+        """
+        Produce a round of dialog in a reinforcement learning setting, i.e. the questions produced by the Q-Bot are fed to the A-Bot and vice versa.
+        """
+        # Generate questions with Q-Bot
         question_logits, question_lengths, generated_questions = self.Qbot.get_questions(Q_state, supervised_training=False)
-        # generated_questions = tf.Print(generated_questions, [tf.argmax(question_logits, axis=2), self.true_questions] , summarize=15)
-        # variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="q_bot")
-        # generated_questions = tf.Print(generated_questions, variables, "RL variables:", summarize=15)
 
-        # generated_questions = tf.Print(generated_questions, [tf.shape(generated_questions), generated_questions], "Generated Questions Shape & Tensor")
-        #Find embeddings of questions
-        question_masks = 1 - tf.cast(tf.equal(generated_questions, tf.zeros(tf.shape(generated_questions), dtype=tf.int32)), tf.float32)
-        #A-bot encodes questions
+        # Update A-Bot state & generate answers
         encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, generated_questions), question_lengths)
-        #A-bot updates state
         A_state, embedded_images = self.Abot.encode_state_histories(A_fact, self.vgg_images, encoded_questions, A_state)
-        #Abot generates answer logits
         answer_logits, answer_lengths, generated_answers = self.Abot.get_answers(A_state, supervised_training=False)
-        #Generate facts for that round of dialog
-        # question_lengths = tf.Print(question_lengths, [generated_questions, question_lengths, generated_answers, answer_lengths], "DEBUGGING:")
-        answer_masks = 1-tf.cast(tf.equal(generated_answers, tf.zeros(tf.shape(generated_answers), dtype=tf.int32)), tf.float32)
+
+        # Generate facts from dialogue and encode in both bots
         facts, fact_lengths = self.concatenate_q_a(generated_questions, question_lengths, generated_answers, answer_lengths)
-        #Embed the facts into word vector space
-        facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
-        #Encode facts into both bots
-        A_fact = self.Abot.encode_facts(facts, fact_lengths)
-        Q_fact = self.Qbot.encode_facts(facts, fact_lengths)
+        embedded_facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
+        A_fact = self.Abot.encode_facts(embedded_facts, fact_lengths)
+        Q_fact = self.Qbot.encode_facts(embedded_facts, fact_lengths)
+
+        # Update Q-Bot state, guess the image, and compute rewards
         Q_state = self.Qbot.encode_state_histories(Q_fact, Q_state)
-        # QBot Generates guess of image
         generated_images = self.Qbot.generate_image_representations(Q_state)
-        #Calculate loss for this round
         rewards = tf.reduce_sum(tf.square(prev_image_predictions - embedded_images), axis=1) - tf.reduce_sum(tf.square(generated_images - embedded_images), axis=1)
         batch_rewards = tf.reduce_mean(rewards)
 
-        #### CHANGE HERE FOR UPDATING ONLY SINGLE BOT
+        # Generate masks to zero out loss computed after stop tokens
+        question_masks = 1 - tf.cast(tf.equal(generated_questions, tf.zeros(tf.shape(generated_questions), dtype=tf.int32)), tf.float32)
+        answer_masks = 1-tf.cast(tf.equal(generated_answers, tf.zeros(tf.shape(generated_answers), dtype=tf.int32)), tf.float32)
+
+        # Compute losses
         prob_questions = tf.reduce_max(tf.nn.softmax(question_logits), axis=2)
         prob_answers = tf.reduce_max(tf.nn.softmax(answer_logits), axis=2)
         negative_log_prob_exchange = -tf.reduce_sum(tf.log(prob_questions)*question_masks, axis=1) - tf.reduce_sum(tf.log(prob_answers)*answer_masks, axis=1)
         loss = tf.reduce_mean(negative_log_prob_exchange*rewards)
-
         return [loss, Q_state, A_state, A_fact, generated_questions, generated_answers, generated_images, batch_rewards]
 
     def sl_run_dialog_round(self, i, Q_state, A_state, A_fact):
-        ## ACCESS TRUE QUESTIONS AND ANSWERS FOR THIS ROUND OF DIALOG
+        """
+        Produce a round of dialog in a supervised learning setting, i.e. the Q-Bot is given ground truth questions and A-Bot is given ground truth answers.
+        """
+        # Extract the ground truth questions and answers (needed for supervised training)
         true_questions = self.true_questions[:,i,:]
         true_question_lengths = self.true_question_lengths[:,i]
         true_answers = self.true_answers[:,i,:]
         true_answer_lengths = self.true_answer_lengths[:,i]
-        #Generate questions based on current state
-        question_masks = 1-tf.cast(tf.equal(true_questions, tf.zeros(tf.shape(true_questions), dtype=tf.int32)), tf.float32)
-        answer_masks = 1-tf.cast(tf.equal(true_answers, tf.zeros(tf.shape(true_answers), dtype=tf.int32)), tf.float32)
-        question_logits, question_lengths, questions = self.Qbot.get_questions(
+
+        # Generate questions with Q-Bot
+        question_logits, question_lengths, _ = self.Qbot.get_questions(
             Q_state,
             true_questions=true_questions,
             true_question_lengths=true_question_lengths,
             supervised_training=True
         )
-        question_logits_new, question_lengths_new, questions_new = self.Qbot.get_questions(
-            Q_state,
-            true_questions=true_questions,
-            true_question_lengths=true_question_lengths,
-            supervised_training=False
-        )
-        # question_logits = tf.Print(question_logits, [true_questions, questions, questions_new], "True Q, Training Q, Greedy Q:", summarize= 10)
-        # question_logits = tf.Print(question_logits, [question_logits, question_logits_new], "Training Q logits, Greedy Q logits:", summarize= 10)
-        # variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="q_bot")
-        # question_logits = tf.Print(question_logits, variables, "SL variables:", summarize=15)
-        # question_logits = tf.Print(question_logits, [tf.argmax(question_logits, axis=2), true_questions], summarize=15)
         
-        #Encode the true questions
+        # Update A-Bot state & generate answers
         encoded_questions = self.Abot.encode_questions(tf.nn.embedding_lookup(self.embedding_matrix, true_questions), true_question_lengths)
-        #Update A state based on true question
         A_state, embedded_images = self.Abot.encode_state_histories(A_fact, self.vgg_images, encoded_questions, A_state)
-        # ABot Generates answers based on current state
-        answer_logits, answer_lengths, answers = self.Abot.get_answers(
+        answer_logits, answer_lengths, _ = self.Abot.get_answers(
             A_state,
             true_answers=true_answers,
             true_answer_lengths=true_answer_lengths,
             supervised_training=True
         )
 
-        #Generate facts from true questions and answers
+        # Generate and apply masks
+        question_masks = 1-tf.cast(tf.equal(true_questions, tf.zeros(tf.shape(true_questions), dtype=tf.int32)), tf.float32)
+        answer_masks = 1-tf.cast(tf.equal(true_answers, tf.zeros(tf.shape(true_answers), dtype=tf.int32)), tf.float32)
         true_questions = true_questions[:,:tf.shape(question_logits)[1]]
         question_masks = question_masks[:,:tf.shape(question_logits)[1]]
         true_answers = true_answers[:,:tf.shape(answer_logits)[1]]
         answer_masks = answer_masks[:,:tf.shape(answer_logits)[1]]
 
+        # Generate facts from dialogue and encode in both bots
         facts, fact_lengths = self.concatenate_q_a(true_questions, question_lengths, true_answers, answer_lengths)
-
         embedded_facts = tf.nn.embedding_lookup(self.embedding_matrix, facts)
-
         A_fact = self.Abot.encode_facts(embedded_facts, fact_lengths)
-
         Q_fact = self.Qbot.encode_facts(embedded_facts, fact_lengths)
-        #Update state histories using current facts
-        Q_state = self.Qbot.encode_state_histories(Q_fact, Q_state)
-        #Guess image
-        image_guess = self.Qbot.generate_image_representations(Q_state)
-        #### Loss for supervised training
-        true_questions = tf.concat([true_questions[:,1:], tf.zeros([tf.shape(self.true_questions)[0],1], dtype = tf.int32)], axis=1)
-        true_answers = tf.concat([true_answers[:,1:], tf.zeros([tf.shape(self.true_answers)[0],1], dtype = tf.int32)], axis=1)
-        question_loss = tf.reduce_mean(
-            tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
-                            logits=question_logits, labels=true_questions)*question_masks, axis=1))
-        answer_loss = tf.reduce_mean(
-                tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
-                            logits=answer_logits, labels=true_answers)*answer_masks, axis=1))
-        image_loss = tf.reduce_mean(tf.nn.l2_loss(image_guess - embedded_images))
 
+        # Update Q-Bot state and guess the image
+        Q_state = self.Qbot.encode_state_histories(Q_fact, Q_state)
+        image_guess = self.Qbot.generate_image_representations(Q_state)
+
+        # Compute losses
+        true_questions = tf.concat([true_questions[:,1:], tf.zeros([tf.shape(self.true_questions)[0],1], dtype=tf.int32)], axis=1)
+        true_answers = tf.concat([true_answers[:,1:], tf.zeros([tf.shape(self.true_answers)[0],1], dtype=tf.int32)], axis=1)
+        question_loss = tf.reduce_mean(
+            tf.reduce_sum(
+                tf.nn.sparse_softmax_cross_entropy_with_logits(logits=question_logits, labels=true_questions)*question_masks,
+                axis=1)
+            )
+        answer_loss = tf.reduce_mean(
+                tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=answer_logits, labels=true_answers)*answer_masks,
+                axis=1)
+        )
+        image_loss = tf.reduce_mean(tf.nn.l2_loss(image_guess - embedded_images))
         loss = question_loss + answer_loss + image_loss
         return [loss, Q_state, A_state, A_fact, true_questions, true_answers, image_guess, tf.constant(0.0)]
 
     def run_dialog_sl(self):
         """
-        Function that runs dialog between two bots for a variable number of rounds, with a subset of rounds with supervised training
-        ================================
-        INPUTS:
-        ================================
-        OUTPUTS:
+        Run dialog between two bots for a variable number of rounds with ground truths.
         """
         caption_embeddings = tf.nn.embedding_lookup(self.embedding_matrix, self.captions)
         Q_state = self.Qbot.encode_captions(caption_embeddings, self.caption_lengths)
-        A_state, reduced_dim_image_embeddings = self.Abot.encode_images_captions(
+        A_state, _ = self.Abot.encode_images_captions(
             caption_embeddings,
             self.vgg_images,
             self.caption_lengths
         )
         A_fact = self.Abot.encode_facts(caption_embeddings, self.caption_lengths)
-        prev_image_predictions = self.Qbot.generate_image_representations(Q_state)
-        image_loss = 0.0
+        _ = self.Qbot.generate_image_representations(Q_state)
         loss = 0.0
         generated_questions = []
         generated_answers = []
@@ -204,15 +192,11 @@ class model():
 
     def run_dialog_rl(self):
         """
-        Function that runs dialog between two bots for a variable number of rounds, with a subset of rounds with supervised training
-        ================================
-        INPUTS:
-        ================================
-        OUTPUTS:
+        Run dialog between two bots for a variable number of rounds, with RL.
         """
         caption_embeddings = tf.nn.embedding_lookup(self.embedding_matrix, self.captions)
         Q_state = self.Qbot.encode_captions(caption_embeddings, self.caption_lengths)
-        A_state, reduced_dim_image_embeddings = self.Abot.encode_images_captions(
+        A_state, _ = self.Abot.encode_images_captions(
             caption_embeddings,
             self.vgg_images,
             self.caption_lengths
@@ -240,6 +224,9 @@ class model():
         return loss, generated_questions, generated_answers, generated_images, cumulative_rewards
 
     def train(self, sess, num_epochs, batch_size):
+        """
+        Train the Q-Bot and A-Bot first with supervised learning, then curriculum learning, and then completely with RL.
+        """
         summary_writer = tf.summary.FileWriter(self.config.model_save_directory, sess.graph)
         best_dev_loss = float('Inf')
         curriculum = 10
@@ -279,6 +266,8 @@ class model():
                     self.show_dialog(sess, batch)
 
     def train_on_batch(self, sess, batch, summary_writer, supervised_learning_rounds=10):
+        """ Train bots on a batch of data.
+        """
         images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, _ = batch
         feed = {
             self.vgg_images: images,
@@ -296,13 +285,17 @@ class model():
         return loss, global_step
 
     def write_summary(self, value, tag, summary_writer, global_step):
-        """ Write a single summary value to tensorboard
+        """
+        Write a single summary value to tensorboard.
         """
         summary = tf.Summary()
         summary.value.add(tag=tag, simple_value=value)
         summary_writer.add_summary(summary, global_step)
 
     def evaluate(self, sess, epoch, compute_MRR = False):
+        """
+        Evalaute the bots with validation data.
+        """
         # files are expected to be in ../data
         eval_dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
                             'data_img.h5', ['val'])
@@ -323,6 +316,9 @@ class model():
         return dev_loss, MRR
 
     def eval_on_batch(self, sess, batch):
+        """
+        Evalaute the bots on a batch of data.
+        """
         images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, _ = batch
         feed = {
             self.vgg_images: images,
@@ -335,22 +331,13 @@ class model():
             self.num_supervised_learning_rounds: 0
         }
         loss, questions, answers, images, rewards = sess.run([self.loss, self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards], feed_dict = feed)
-
         return loss, images, answers, questions, rewards
 
     def compute_mrr(self, preds, gt_indices, images, round_num, epoch):
         """
-        NOTE: BATCH SIZE HAS TO BE SMALL ~10 - 15 for this to hold in memory.
         At each round we generate predictions from Q Bot across our batch.
         We then sort all the images in the validation set according to their distance to the
         given prediction and find the ranking of the true input image.
-        ===================================
-        INPUTS:
-        preds = float [batch_size, IMG_REP_DIM]
-        gt_indices = float [batch_size] (indices of the ground truth images)
-        images = float [VALIDATION_SIZE, IMG_REP_DIM]
-        ===================================
-        OUTPUTS:
         """
         validation_data_sz = tf.shape(images)[0]
         batch_data_sz = tf.shape(preds)[0]
@@ -388,6 +375,9 @@ class model():
         return percentage_rank_gt
 
     def show_dialog(self, sess, batch):
+        """
+        Show a sample dialog produced betweeb the Q-Bot and A-Bot.
+        """
         images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
         feed = {
             self.vgg_images: images,
