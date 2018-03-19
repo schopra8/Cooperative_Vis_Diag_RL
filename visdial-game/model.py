@@ -40,6 +40,8 @@ class model():
         self.true_question_lengths = tf.placeholder(tf.int32, shape=[None, self.config.num_dialog_rounds])
         self.true_answer_lengths = tf.placeholder(tf.int32, shape=[None, self.config.num_dialog_rounds])
         self.num_supervised_learning_rounds = tf.placeholder(tf.int32, shape=[])
+        self.generated_images = tf.placeholder(tf.float32, shape=[None, self.config.IMG_REP_DIM])
+        self.gt_indices = tf.placeholder(tf.int32, shape=[])
 
     def add_loss_op(self):
         """
@@ -47,6 +49,7 @@ class model():
         """
         self.loss, self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards = self.run_dialog_sl()
         self.loss_rl, self.generated_questions_rl, self.generated_answers_rl, self.generated_images_rl, self.batch_rewards_rl = self.run_dialog_rl()
+        self.mrr = self.compute_mrr()
         avg_batch_rewards = tf.add_n(self.batch_rewards) / len(self.batch_rewards)
         tf.summary.scalar('loss', self.loss)
         tf.summary.scalar('avg_batch_rewards', avg_batch_rewards)
@@ -244,7 +247,7 @@ class model():
                 loss, global_step = self.train_on_batch(sess, batch, summary_writer, supervised_learning_rounds=curriculum)
                 prog_values = [("Loss", loss)]
                 if global_step % self.config.eval_every == 0:
-                    dev_loss, dev_MRR = self.evaluate(sess, i)
+                    dev_loss, dev_MRR = self.evaluate(sess, i, True)
                     self.write_summary(dev_loss, "dev/loss_total", summary_writer, global_step)
 
                     print("DEV MRR: {}").format(dev_MRR)
@@ -300,26 +303,28 @@ class model():
         eval_dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
                             'data_img.h5', ['val'])
         dev_loss = 0
+        dev_mrr = tf.zeros(shape=[self.config.num_dialog_rounds])
         dev_batch_generator = eval_dataloader.getEvalBatch(self.config.batch_size)
         num_batches = math.ceil(self.config.NUM_VALIDATION_SAMPLES / self.config.batch_size + 1)
+
+        num_batches = 1
+
         progbar = tf.keras.utils.Progbar(target=num_batches)
         for i, batch in enumerate(dev_batch_generator):
-            true_images, _, _, _, _, _, _, gt_indices = batch
-            loss, preds, _, _, _ = self.eval_on_batch(sess, batch)
+            loss, _, _, _, _, mrr = self.eval_on_batch(sess, batch, compute_MRR)
             dev_loss += loss
-            MRR = np.zeros([self.config.num_dialog_rounds])
-            if compute_MRR:
-                for round_number, p in enumerate(preds):
-                    percentage_rank_gt = self.compute_mrr(p, gt_indices, true_images, round_number, epoch)
-                    MRR[round_number] += tf.divide(tf.reduce_mean(percentage_rank_gt), tf.constant(num_batches))
+            dev_mrr += tf.divide(tf.reduce_sum(mrr, axis=0), num_batches)
+            if i == 0:
+                break
             progbar.update(i+1)
-        return dev_loss, MRR
+        
+        return dev_loss, dev_mrr
 
-    def eval_on_batch(self, sess, batch):
+    def eval_on_batch(self, sess, batch, run_mrr):
         """
         Evalaute the bots on a batch of data.
         """
-        images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, _ = batch
+        images, captions, caption_lengths, true_questions, true_question_lengths, true_answers, true_answer_lengths, gt_indices = batch
         feed = {
             self.vgg_images: images,
             self.captions: captions,
@@ -328,35 +333,50 @@ class model():
             self.true_question_lengths: true_question_lengths,
             self.true_answers: true_answers,
             self.true_answer_lengths: true_answer_lengths,
-            self.num_supervised_learning_rounds: 0
+            self.num_supervised_learning_rounds: 0,
+            self.gt_indices: gt_indices,
         }
         loss, questions, answers, images, rewards = sess.run([self.loss, self.generated_questions, self.generated_answers, self.generated_images, self.batch_rewards], feed_dict = feed)
-        return loss, images, answers, questions, rewards
 
-    def compute_mrr(self, preds, gt_indices, images, round_num, epoch):
+        if run_mrr:
+            feed[self.generated_images] = images
+            mrr = sess.run([self.mrr], feed_dict = feed)
+        else:
+            mrr = None
+        return loss, images, answers, questions, rewards, mrr
+
+    def compute_mrr(self):
         """
         At each round we generate predictions from Q Bot across our batch.
         We then sort all the images in the validation set according to their distance to the
         given prediction and find the ranking of the true input image.
         """
-        validation_data_sz = tf.shape(images)[0]
-        batch_data_sz = tf.shape(preds)[0]
+        validation_data_sz = self.config.NUM_VALIDATION_SAMPLES
+        batch_data_sz = tf.shape(self.generated_images)[0]
+
+        # TODO: Fetch all validation images
+        embedded_ground_truth_images = tf.expand_dims(tf.expand_dims(tf.stack(self.Abot.convert_images(self.vgg_images)), axis=0), axis=3)
+        print embedded_ground_truth_images
+        embedded_ground_truth_images = tf.Print(embedded_ground_truth_images, [embedded_ground_truth_images, tf.shape(embedded_ground_truth_images)], summarize=15)
 
         # Tile the predictions and images tensors to be of the same dimenions,
-        # namely (Validation Data Size, Preds, Img Dimensions)
-        preds_expanded = tf.tile(tf.expand_dims(preds, axis=0), tf.constant([validation_data_sz, 1, 1]))
-        images_expanded = tf.tile(tf.expand_dims(images, axis=1), tf.constant([1, batch_data_sz, 1]))
+        # namely (Validation Data Size, Num Rounds of Dialogs, Preds, Img Dimensions)
+        preds_expanded = tf.tile(tf.expand_dims(self.generated_images, axis=0), tf.constant([validation_data_sz, 1, 1, 1]))
+        images_expanded = tf.tile(embedded_ground_truth_images, tf.constant([1, self.config.num_dialog_rounds, 1, 1]))
+        batch_tiling = tf.multiply(tf.constant([1, 1, 1, 1]) * batch_data_sz, tf.constant([0, 0, 0, 1]))
+        images_expanded = tf.transpose(tf.tile(images_expanded, batch_tiling), perm=[0, 1, 3, 2])
+        print images_expanded
 
         # Compute L2 distances.
         # Each column represents L2 distances between a predicted image and all val images.
-        # Dim: (Preds, Validation Data Size)
-        l2_distances = tf.transpose(tf.squeeze(tf.sqrt(tf.reduce_sum(tf.square(preds_expanded - images_expanded), axis=2))))
+        # Dim: (Preds, Num Rounds of Dialog, Validation Data Size)
+        l2_distances = tf.transpose(tf.squeeze(tf.sqrt(tf.reduce_sum(tf.square(preds_expanded - images_expanded), axis=3))), perm=[2,1,0])
 
         # Sort the values in each row, i.e. sort all the similarity between all validation images
         # and predicted image.
-        # Dim: (Preds, Validation Data Size)
+        # Dim: (Preds, num rounds of dialog, Validation Data Size)
         _, sorted_img_indices = tf.nn.top_k(
-            tf.transpose(l2_distances), # (preds, validation data size)
+            l2_distances, # (preds, num rounds of dialog, validation data size)
             k=validation_data_sz,
             sorted=True,
         )
@@ -367,11 +387,16 @@ class model():
         sorted_img_indices_list = tf.unstack(sorted_img_indices)
 
         # Find the position of the image index corresponding to ground truth picture
-        pos_gt = []
+        pos_gt = np.zeros(batch_data_sz, self.config.num_dialog_rounds)
         for i, l in enumerate(sorted_img_indices_list):
-            sorted_gt_pos = tf.argmax(tf.cast(tf.equal(l, gt_indices[i]), dtype=tf.int32), axis=0)
-            pos_gt.append(sorted_gt_pos)
-        percentage_rank_gt = (np.array(pos_gt) + 1) / validation_data_sz  # + 1 to account for 0 indexing
+            individual_dialog_rounds = tf.unstack(l)
+            for j, dialog_round in enumerate(individual_dialog_rounds):
+                sorted_gt_pos = tf.argmax(tf.cast(tf.equal(dialog_round, self.gt_indices[i]), dtype=tf.int32), axis=0)
+                pos_gt[i][j] = sorted_gt_pos
+        percentage_rank_gt = pos_gt + 1 / float(validation_data_sz)  # + 1 to account for 0 indexing
+
+        tf.Print(sorted_img_indices_list, [l2_distances, sorted_img_indices_list], "debugging", summarize=15)
+
         return percentage_rank_gt
 
     def show_dialog(self, sess, batch):

@@ -104,6 +104,11 @@ class DeepABot():
         )
         return answer_logits, answer_lengths, answer_ids
 
+    def convert_images(self, images):
+        """ Convert VGG embeddings from 4096 Dimensions to 300
+        """
+        return self.history_encoder.convert_images(images)
+
 class DeepQBot():
     """Abstracts a Q-Bot for asking questions about a photo
     """
