@@ -397,9 +397,7 @@ class model():
                 dialog_gt.append(sorted_gt_pos)
             pos_gt.append(dialog_gt)
         # TODO: is higher or lower better? right now 0 means perfect
-        print type(pos_gt[0][0])
-        percentage_rank_gt = tf.divide(np.array(pos_gt) + 1, tf.constant(validation_data_sz, tf.float32))  # + 1 to account for 0 indexing
-        print 'finished'
+        percentage_rank_gt = (tf.cast(pos_gt, tf.float32) + 1) / validation_data_sz  # + 1 to account for 0 indexing
         # tf.Print(sorted_img_indices_list, [l2_distances, sorted_img_indices_list], "debugging", summarize=15)
 
         return percentage_rank_gt
