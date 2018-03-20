@@ -25,8 +25,7 @@ class model():
         self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.config.keep)
 
         # Files are expected to be in ../data
-        # self.dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
-                            # 'data_img.h5', ['train'])
+        self.dataloader = DataLoader('visdial_params.json', 'visdial_data.h5', 'data_img.h5', ['train'])
 
     def add_placeholders(self):
         """
@@ -41,7 +40,7 @@ class model():
         self.true_answer_lengths = tf.placeholder(tf.int32, shape=[None, self.config.num_dialog_rounds])
         self.num_supervised_learning_rounds = tf.placeholder(tf.int32, shape=[])
         self.generated_images = tf.placeholder(tf.float32, shape=[None, self.config.IMG_REP_DIM])
-        self.gt_indices = tf.placeholder(tf.int32, shape=[])
+        self.gt_indices = tf.placeholder(tf.int32, shape=[None])
 
     def add_loss_op(self):
         """
@@ -228,7 +227,7 @@ class model():
         """
         Train the Q-Bot and A-Bot first with supervised learning, then curriculum learning, and then completely with RL.
         """
-        # self.evaluate(sess, 0, True)
+        self.evaluate(sess, 0, True)
         summary_writer = tf.summary.FileWriter(self.config.model_save_directory, sess.graph)
         best_dev_loss = float('Inf')
         curriculum = 10
@@ -299,8 +298,7 @@ class model():
         Evalaute the bots with validation data.
         """
         # files are expected to be in ../data
-        eval_dataloader = DataLoader('visdial_params.json', 'visdial_data.h5',
-                            'data_img.h5', ['val'])
+        eval_dataloader = DataLoader('visdial_params.json', 'visdial_data.h5', 'data_img.h5', ['val'])
         dev_loss = 0
         dev_mrr = tf.zeros(shape=[self.config.num_dialog_rounds])
         dev_batch_generator = eval_dataloader.getEvalBatch(self.config.eval_batch_size)
@@ -382,6 +380,7 @@ class model():
         # Unstack this matrix into a list of tensors
         # Each tensor in the list provides the indices of the validation images, in order from
         # farthest from the prediction, to closest to the prediction.
+        # TODO this might cause an error for the last batch in eval (when the batch is not eval_batch_size)
         partitions = tf.range(self.config.eval_batch_size)
         partitioned_sorted_img_indices = tf.dynamic_partition(sorted_img_indices, partitions, self.config.eval_batch_size)
         sorted_img_indices_list = tf.unstack(partitioned_sorted_img_indices)
@@ -392,16 +391,16 @@ class model():
         pos_gt = []
         for i, l in enumerate(sorted_img_indices_list):
             dialog_gt = []
-            print l.shape
             for j in xrange(self.config.num_dialog_rounds):
                 dialog_round = tf.squeeze(l[:, j, :], axis=0)
                 sorted_gt_pos = tf.argmax(tf.cast(tf.equal(dialog_round, self.gt_indices[i]), dtype=tf.int32), axis=0)
                 dialog_gt.append(sorted_gt_pos)
             pos_gt.append(dialog_gt)
         # TODO: is higher or lower better? right now 0 means perfect
-        percentage_rank_gt = np.array(pos_gt) + 1 / float(validation_data_sz)  # + 1 to account for 0 indexing
-
-        tf.Print(sorted_img_indices_list, [l2_distances, sorted_img_indices_list], "debugging", summarize=15)
+        print type(pos_gt[0][0])
+        percentage_rank_gt = tf.divide(np.array(pos_gt) + 1, tf.constant(validation_data_sz, tf.float32))  # + 1 to account for 0 indexing
+        print 'finished'
+        # tf.Print(sorted_img_indices_list, [l2_distances, sorted_img_indices_list], "debugging", summarize=15)
 
         return percentage_rank_gt
 
